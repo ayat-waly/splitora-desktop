@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline'">
+<title>Splitora</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#14243f; --blue:#2f7cf6; --teal:#19b8a6; --purple:#8b5cf6; --orange:#f59a2b;
+  --bg:#f4f7fc; --card:#ffffff; --text:#182338; --muted:#67748e; --border:#e3e9f4; --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans Arabic','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+[dir=ltr] body{font-family:'Inter','IBM Plex Sans Arabic',sans-serif}
+.container{max-width:840px;margin:0 auto;padding:0 20px 50px}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{width:46px;height:46px;border-radius:12px}
+.brand h1{font-size:1.35rem;font-weight:700;color:var(--navy)}
+.brand h1 span{color:var(--orange)}
+.brand small{display:block;font-size:.72rem;color:var(--muted);font-weight:500}
+.hdr-tags{display:flex;gap:8px;align-items:center}
+.tag{font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:999px;background:#e2f7f4;color:#0d8577}
+.lang-btn{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:7px 16px;font-family:inherit;font-size:.8rem;font-weight:600;color:var(--navy);cursor:pointer}
+.lang-btn:hover{border-color:var(--blue);color:var(--blue)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-top:16px;box-shadow:0 4px 20px rgba(20,36,63,.05)}
+.step-title{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:14px}
+.step-num{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.drop{border:2px dashed #b9c8e4;border-radius:14px;padding:34px 20px;text-align:center;cursor:pointer;transition:.2s;background:#fafcff}
+.drop:hover,.drop.over{border-color:var(--blue);background:#eef5ff}
+.drop .icon{font-size:2rem}
+.drop h3{font-size:1rem;font-weight:700;color:var(--navy);margin-top:8px}
+.drop p{color:var(--muted);font-size:.8rem;margin-top:5px}
+.file-info{display:none;margin-top:14px;gap:10px;flex-wrap:wrap}
+.file-info.show{display:flex}
+.chip{background:#f0f4fb;border-radius:11px;padding:9px 14px;font-size:.8rem}
+.chip b{display:block;color:var(--navy);font-size:.88rem;margin-top:2px}
+.chip label{color:var(--muted);font-size:.7rem;font-weight:600}
+.presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:9px}
+.preset{border:1.5px solid var(--border);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;font-family:inherit;transition:.15s}
+.preset b{display:block;font-size:1.1rem;color:var(--navy)}
+.preset span{font-size:.68rem;color:var(--muted);font-weight:600}
+.preset.active{border-color:var(--blue);background:#eef5ff;box-shadow:0 0 0 3px rgba(47,124,246,.12)}
+.preset.active b{color:var(--blue)}
+.custom-row{display:flex;align-items:center;gap:10px;margin-top:12px}
+.custom-row input{flex:0 1 150px;border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;font-family:inherit;font-size:.95rem;font-weight:600;color:var(--navy);outline:none}
+.custom-row input:focus{border-color:var(--blue)}
+.custom-row label{font-size:.8rem;color:var(--muted);font-weight:600}
+.estimate{margin-top:13px;background:linear-gradient(90deg,#eef5ff,#f5f0ff);border-radius:11px;padding:12px 16px;font-size:.85rem;color:var(--navy);display:none;line-height:1.8}
+.estimate.show{display:block}
+.estimate b{color:var(--blue)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}
+.opt{border:1.5px solid var(--border);border-radius:11px;padding:12px;cursor:pointer;background:#fff;font-family:inherit;text-align:center;transition:.15s}
+.opt b{display:block;font-size:.9rem;color:var(--navy)}
+.opt span{font-size:.68rem;color:var(--muted);display:block;margin-top:3px;line-height:1.5}
+.opt.active{border-color:var(--teal);background:#effbf9;box-shadow:0 0 0 3px rgba(25,184,166,.12)}
+.reels-row{display:flex;align-items:center;gap:13px;margin-top:14px;padding:12px 16px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;transition:.15s}
+.reels-row.active{border-color:var(--purple);background:#f7f3ff}
+.reels-row .sw{width:42px;height:24px;border-radius:999px;background:#d4dcec;position:relative;transition:.2s;flex-shrink:0}
+.reels-row .sw::after{content:'';position:absolute;top:3px;inset-inline-start:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.reels-row.active .sw{background:var(--purple)}
+.reels-row.active .sw::after{inset-inline-start:21px}
+.reels-row b{font-size:.85rem;color:var(--navy)}
+.reels-row span{font-size:.7rem;color:var(--muted);display:block;margin-top:2px;line-height:1.6}
+.outdir-row{display:flex;align-items:center;gap:10px;margin-top:14px}
+.outdir-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.78rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.outdir-row button{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
+.outdir-row button:hover{border-color:var(--blue);color:var(--blue)}
+.go-btn{width:100%;margin-top:18px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:13px;padding:15px;font-family:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 8px 22px rgba(47,124,246,.3)}
+.go-btn:hover:not(:disabled){transform:translateY(-2px)}
+.go-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.progress-wrap{display:none}
+.progress-wrap.show{display:block}
+.pbar{height:13px;background:#e8eef8;border-radius:999px;overflow:hidden;margin-top:12px}
+.pbar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--teal),var(--purple),var(--blue));background-size:300% 100%;border-radius:999px;transition:width .25s;animation:shimmer 2s linear infinite}
+@keyframes shimmer{to{background-position:-300% 0}}
+.pstatus{display:flex;justify-content:space-between;margin-top:9px;font-size:.82rem;color:var(--muted);font-weight:600}
+.pstatus b{color:var(--navy)}
+.cancel-btn{width:100%;margin-top:12px;background:transparent;border:1.5px solid #f3c1c1;color:#b02a2a;border-radius:11px;padding:10px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+.results{display:none}
+.results.show{display:block}
+.done-banner{background:linear-gradient(90deg,#e2f7f4,#e8f1ff);border-radius:11px;padding:14px 18px;text-align:center;font-weight:700;color:#0d8577;margin-bottom:14px;font-size:.95rem}
+.folder-row{display:flex;gap:10px;margin-bottom:14px}
+.folder-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.76rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.open-btn{background:var(--navy);color:#fff;border:none;border-radius:11px;padding:11px 20px;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.open-btn:hover{background:#1d3358}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+.pitem{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:11px;padding:11px 14px;background:#fff;cursor:pointer;transition:.15s}
+.pitem:hover{border-color:var(--blue)}
+.pitem b{font-size:.82rem;color:var(--navy);direction:ltr}
+.pitem span{font-size:.72rem;color:var(--muted)}
+.restart{width:100%;margin-top:14px;background:transparent;border:1.5px solid var(--border);color:var(--muted);border-radius:12px;padding:12px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+.restart:hover{border-color:var(--blue);color:var(--blue)}
+.err{display:none;margin-top:12px;background:#fef1f1;border:1px solid #f6c7c7;border-radius:11px;padding:12px 16px;font-size:.8rem;color:#b02a2a;line-height:1.7;word-break:break-word}
+.err.show{display:block}
+footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <img src="logo.webp" alt="Splitora">
+      <div>
+        <h1>Split<span>ora</span> <span style="font-size:.65rem;background:#eef5ff;color:var(--blue);padding:3px 9px;border-radius:999px;vertical-align:middle">Desktop</span></h1>
+        <small data-i18n="tagline">قسّم فيديوهاتك باحترافية — بأقصى سرعة، بدون إنترنت</small>
+      </div>
+    </div>
+    <div class="hdr-tags">
+      <span class="tag" data-i18n="tagFast">⚡ محرك FFmpeg الأصلي</span>
+      <button class="lang-btn" id="langBtn" onclick="toggleLang()">English</button>
+    </div>
+  </header>
+
+  <!-- 1: File -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">1</span><span data-i18n="s1">اختر الفيديو</span></div>
+    <div class="drop" id="drop">
+      <div class="icon">🎬</div>
+      <h3 data-i18n="dropT">اسحب الفيديو هنا أو اضغط للاختيار</h3>
+      <p data-i18n="dropS">MP4 · MOV · WebM · MKV · AVI — أي حجم، بدون حدود</p>
+    </div>
+    <div class="file-info" id="fileInfo">
+      <div class="chip"><label data-i18n="fName">اسم الملف</label><b id="fiName">—</b></div>
+      <div class="chip"><label data-i18n="fDur">المدة</label><b id="fiDur">—</b></div>
+      <div class="chip"><label data-i18n="fSize">الحجم</label><b id="fiSize">—</b></div>
+      <div class="chip"><label data-i18n="fRes">الأبعاد</label><b id="fiRes" style="direction:ltr">—</b></div>
+    </div>
+  </div>
+
+  <!-- 2: Duration -->
+  <div class="card" id="stepDur" style="opacity:.45;pointer-events:none">
+    <div class="step-title"><span class="step-num">2</span><span data-i18n="s2">حدد مدة كل مقطع</span></div>
+    <div class="presets" id="presets">
+      <button class="preset" data-sec="15"><b>15</b><span data-i18n="sec">ثانية</span></button>
+      <button class="preset" data-sec="30"><b>30</b><span data-i18n="sec">ثانية</span></button>
+      <button class="preset" data-sec="45"><b>45</b><span data-i18n="sec">ثانية</span></button>
+      <button class="preset" data-sec="50"><b>50</b><span data-i18n="sec">ثانية</span></button>
+      <button class="preset active" data-sec="60"><b>60</b><span data-i18n="sec">ثانية</span></button>
+    </div>
+    <div class="custom-row">
+      <label data-i18n="custom">أو مدة مخصصة:</label>
+      <input type="number" id="customSec" min="1" step="1" placeholder="90">
+      <label data-i18n="sec">ثانية</label>
+    </div>
+    <div class="estimate" id="estimate"></div>
+  </div>
+
+  <!-- 3: Quality + output -->
+  <div class="card" id="stepQ" style="opacity:.45;pointer-events:none">
+    <div class="step-title"><span class="step-num">3</span><span data-i18n="s3">الجودة ومكان الحفظ</span></div>
+    <div class="opts" id="qualityOpts">
+      <button class="opt active" data-q="copy"><b data-i18n="qOrig">الجودة الأصلية ⚡</b><span data-i18n="qOrigS">بدون إعادة ترميز — لحظي تقريباً</span></button>
+      <button class="opt" data-q="1080"><b>1080p</b><span data-i18n="q1080S">إعادة ترميز بقص دقيق للثانية</span></button>
+      <button class="opt" data-q="720"><b>720p</b><span data-i18n="q720S">إعادة ترميز — حجم أصغر</span></button>
+    </div>
+    <div class="reels-row" id="reelsRow">
+      <div class="sw"></div>
+      <div><b data-i18n="reels">تحويل لحجم الريلز (9:16) 📱</b><span data-i18n="reelsS">مثالي لـ Reels و TikTok و Shorts</span></div>
+    </div>
+    <div class="outdir-row">
+      <div class="path" id="outPath">—</div>
+      <button id="outBtn" data-i18n="outBtn">📁 تغيير مجلد الحفظ</button>
+    </div>
+    <button class="go-btn" id="goBtn" disabled data-i18n="go">✂️ ابدأ التقسيم</button>
+    <div class="err" id="errBox"></div>
+  </div>
+
+  <!-- Progress -->
+  <div class="card progress-wrap" id="progressCard">
+    <div class="step-title"><span class="step-num">⏳</span><span data-i18n="processing">جاري التقسيم…</span></div>
+    <div class="pbar"><div id="pbarFill"></div></div>
+    <div class="pstatus"><span id="pLabel" data-i18n="splitting">✂️ جاري تقسيم الفيديو…</span><b id="pPct">0%</b></div>
+    <button class="cancel-btn" id="cancelBtn" data-i18n="cancel">إلغاء</button>
+  </div>
+
+  <!-- Results -->
+  <div class="card results" id="resultsCard">
+    <div class="done-banner" id="doneBanner">✅</div>
+    <div class="folder-row">
+      <div class="path" id="doneDir"></div>
+      <button class="open-btn" id="openBtn" data-i18n="openFolder">📂 افتح المجلد</button>
+    </div>
+    <div class="plist" id="plist"></div>
+    <button class="restart" id="againBtn" data-i18n="again">🔄 تقسيم فيديو آخر</button>
+  </div>
+
+  <footer>Splitora Desktop © 2026 — <span data-i18n="foot">كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً</span></footer>
+</div>
+
+<script>
+const I18N={
+ ar:{tagline:'قسّم فيديوهاتك باحترافية — بأقصى سرعة، بدون إنترنت',tagFast:'⚡ محرك FFmpeg الأصلي',
+  s1:'اختر الفيديو',dropT:'اسحب الفيديو هنا أو اضغط للاختيار',dropS:'MP4 · MOV · WebM · MKV · AVI — أي حجم، بدون حدود',
+  fName:'اسم الملف',fDur:'المدة',fSize:'الحجم',fRes:'الأبعاد',
+  s2:'حدد مدة كل مقطع',sec:'ثانية',custom:'أو مدة مخصصة:',
+  s3:'الجودة ومكان الحفظ',qOrig:'الجودة الأصلية ⚡',qOrigS:'بدون إعادة ترميز — لحظي تقريباً',
+  q1080S:'إعادة ترميز بقص دقيق للثانية',q720S:'إعادة ترميز — حجم أصغر',
+  reels:'تحويل لحجم الريلز (9:16) 📱',reelsS:'مثالي لـ Reels و TikTok و Shorts',
+  outBtn:'📁 تغيير مجلد الحفظ',go:'✂️ ابدأ التقسيم',processing:'جاري التقسيم…',
+  splitting:'✂️ جاري تقسيم الفيديو…',cancel:'إلغاء',
+  openFolder:'📂 افتح المجلد',again:'🔄 تقسيم فيديو آخر',
+  foot:'كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً',
+  estimate:(n,d,last)=>`سيتم تقسيم الفيديو إلى <b>${n} مقطع</b> — ${n-(last?1:0)} مقطع مدة كل منها <b>${d} ثانية</b>${last?` + مقطع أخير مدته <b>${last} ثانية</b>`:''}.`,
+  done:n=>`✅ تم التقسيم بنجاح! ${n} مقطع محفوظ`,errDur:'من فضلك أدخل مدة صحيحة بالثواني.',
+  errProc:'حدث خطأ أثناء المعالجة: ',cancelled:'تم الإلغاء.'},
+ en:{tagline:'Split your videos professionally — full speed, no internet needed',tagFast:'⚡ Native FFmpeg engine',
+  s1:'Choose your video',dropT:'Drag a video here or click to browse',dropS:'MP4 · MOV · WebM · MKV · AVI — any size, no limits',
+  fName:'File name',fDur:'Duration',fSize:'Size',fRes:'Dimensions',
+  s2:'Choose clip duration',sec:'seconds',custom:'Or custom duration:',
+  s3:'Quality & save location',qOrig:'Original quality ⚡',qOrigS:'No re-encoding — near instant',
+  q1080S:'Re-encode, second-accurate cuts',q720S:'Re-encode — smaller files',
+  reels:'Convert to Reels size (9:16) 📱',reelsS:'Perfect for Reels, TikTok & Shorts',
+  outBtn:'📁 Change save folder',go:'✂️ Start splitting',processing:'Splitting…',
+  splitting:'✂️ Splitting your video…',cancel:'Cancel',
+  openFolder:'📂 Open folder',again:'🔄 Split another video',
+  foot:'All processing happens on your device — your files never leave it',
+  estimate:(n,d,last)=>`Your video will be split into <b>${n} parts</b> — ${n-(last?1:0)} parts of <b>${d}s</b> each${last?` + a final part of <b>${last}s</b>`:''}.`,
+  done:n=>`✅ Done! ${n} parts saved`,errDur:'Please enter a valid duration in seconds.',
+  errProc:'Processing failed: ',cancelled:'Cancelled.'}
+};
+let lang='ar';
+const t=k=>I18N[lang][k];
+function applyLang(){
+  document.documentElement.lang=lang;
+  document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+  document.getElementById('langBtn').textContent=lang==='ar'?'English':'العربية';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const v=I18N[lang][el.dataset.i18n];if(typeof v==='string')el.textContent=v;});
+  updateEstimate();
+}
+function toggleLang(){lang=lang==='ar'?'en':'ar';applyLang();}
+
+const $=id=>document.getElementById(id);
+const fmtTime=s=>{s=Math.round(s);const m=Math.floor(s/60),ss=s%60,h=Math.floor(m/60);return (h?h+':':'')+String(h?m%60:m).padStart(h?2:1,'0')+':'+String(ss).padStart(2,'0');};
+const fmtSize=b=>b>1e9?(b/1e9).toFixed(2)+' GB':b>1e6?(b/1e6).toFixed(1)+' MB':(b/1e3).toFixed(0)+' KB';
+
+let filePath=null,videoDur=0,clipSec=60,quality='copy',reels=false,outDir='',resultDir='';
+
+/* file selection */
+const drop=$('drop');
+drop.onclick=async()=>{const f=await window.splitora.pickVideo();if(f)await setFile(f);};
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',async ev=>{
+  const f=ev.dataTransfer.files[0];
+  if(!f)return;
+  const p=window.splitora.pathOf(f);
+  if(p)await setFile(p);
+});
+async function setFile(p){
+  try{
+    const info=await window.splitora.probe(p);
+    filePath=p;videoDur=info.duration;
+    $('fiName').textContent=info.name;
+    $('fiDur').textContent=fmtTime(info.duration);
+    $('fiSize').textContent=fmtSize(info.size);
+    $('fiRes').textContent=info.width+'×'+info.height;
+    $('fileInfo').classList.add('show');
+    ['stepDur','stepQ'].forEach(id=>{$(id).style.opacity=1;$(id).style.pointerEvents='auto';});
+    $('goBtn').disabled=false;
+    updateEstimate();
+  }catch(e){showErr(String(e.message||e));}
+}
+
+/* duration */
+document.querySelectorAll('.preset').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');clipSec=+b.dataset.sec;$('customSec').value='';updateEstimate();
+});
+$('customSec').oninput=e=>{const v=+e.target.value;if(v>0){clipSec=v;document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));}updateEstimate();};
+function updateEstimate(){
+  const est=$('estimate');
+  if(!videoDur||!clipSec||clipSec<=0){est.classList.remove('show');return;}
+  const n=Math.ceil(videoDur/clipSec);
+  const rem=videoDur-Math.floor(videoDur/clipSec)*clipSec;
+  const last=(videoDur%clipSec>0.5&&n>1)?Math.round(rem):0;
+  est.innerHTML=I18N[lang].estimate(n,clipSec,last);
+  est.classList.add('show');
+}
+
+/* quality + reels + outdir */
+document.querySelectorAll('#qualityOpts .opt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#qualityOpts .opt').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');quality=b.dataset.q;
+});
+$('reelsRow').onclick=()=>{reels=!reels;$('reelsRow').classList.toggle('active',reels);};
+$('outBtn').onclick=async()=>{const d=await window.splitora.pickOutDir();if(d){outDir=d;$('outPath').textContent=d;}};
+window.splitora.defaultOutDir().then(d=>{outDir=d;$('outPath').textContent=d;});
+
+function showErr(m){const e=$('errBox');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),12000);}
+
+/* split */
+window.splitora.onProgress(r=>{
+  const pc=Math.round(r*100);
+  $('pbarFill').style.width=pc+'%';$('pPct').textContent=pc+'%';
+});
+$('goBtn').onclick=async()=>{
+  if(!filePath)return;
+  if(!clipSec||clipSec<=0){showErr(t('errDur'));return;}
+  $('goBtn').disabled=true;
+  $('progressCard').classList.add('show');
+  $('resultsCard').classList.remove('show');
+  $('pbarFill').style.width='0%';$('pPct').textContent='0%';
+  $('progressCard').scrollIntoView({behavior:'smooth'});
+  try{
+    const res=await window.splitora.split({input:filePath,outDir,clipSec,quality,reels,duration:videoDur});
+    resultDir=res.dir;
+    $('progressCard').classList.remove('show');
+    $('doneBanner').textContent=I18N[lang].done(res.files.length);
+    $('doneDir').textContent=res.dir;
+    const pl=$('plist');pl.innerHTML='';
+    res.files.forEach(f=>{
+      const d=document.createElement('div');
+      d.className='pitem';
+      d.innerHTML=`<b>${f.name}</b><span>${fmtSize(f.size)}</span>`;
+      d.onclick=()=>window.splitora.openFile(f.path);
+      pl.appendChild(d);
+    });
+    $('resultsCard').classList.add('show');
+    $('resultsCard').scrollIntoView({behavior:'smooth'});
+  }catch(e){
+    $('progressCard').classList.remove('show');
+    const m=String(e.message||e);
+    showErr(/cancelled/.test(m)?t('cancelled'):t('errProc')+m.slice(0,300));
+  }finally{
+    $('goBtn').disabled=false;
+  }
+};
+$('cancelBtn').onclick=()=>window.splitora.cancel();
+$('openBtn').onclick=()=>{if(resultDir)window.splitora.openFolder(resultDir);};
+$('againBtn').onclick=()=>{
+  $('resultsCard').classList.remove('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+applyLang();
+</script>
+</body>
+</html>
