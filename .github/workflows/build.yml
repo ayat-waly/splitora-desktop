@@ -27,6 +27,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Download yt-dlp (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p bin
+          curl -L -o bin/yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
+        shell: bash
+
+      - name: Download yt-dlp (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p bin
+          curl -L -o bin/yt-dlp_macos https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos
+          chmod +x bin/yt-dlp_macos
+
+      - name: Download yt-dlp (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p bin
+          curl -L -o bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux
+          chmod +x bin/yt-dlp
+
       - name: Build installers
         run: npx electron-builder --publish never
         env:

@@ -155,6 +155,111 @@ ipcMain.handle('split', async (_e, opts) => {
   });
 });
 
+/* ---------- yt-dlp: download videos from URLs (YouTube, TikTok, 1800+ sites) ---------- */
+const YTDLP_NAME = process.platform === 'win32' ? 'yt-dlp.exe' : (process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp');
+function bundledYtdlp() {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'bin', YTDLP_NAME), // packaged app
+    path.join(__dirname, 'bin', YTDLP_NAME)                    // dev mode
+  ];
+  return candidates.find(p => { try { return fs.existsSync(p); } catch (_) { return false; } }) || null;
+}
+function ytdlpPath() {
+  // writable copy in userData so self-update (-U) works even when the app dir is read-only
+  try {
+    const dir = path.join(app.getPath('userData'), 'bin');
+    const target = path.join(dir, YTDLP_NAME);
+    if (!fs.existsSync(target)) {
+      const src = bundledYtdlp();
+      if (!src) return null;
+      fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(src, target);
+    }
+    if (process.platform !== 'win32') { try { fs.chmodSync(target, 0o755); } catch (_) {} }
+    return target;
+  } catch (_) { return bundledYtdlp(); }
+}
+let YTDLP = null;
+app.whenReady().then(() => {
+  YTDLP = ytdlpPath();
+  // silent self-update in the background (YouTube changes often; yt-dlp patches fast)
+  if (YTDLP) { try { spawn(YTDLP, ['-U'], { windowsHide: true }).on('error', () => {}); } catch (_) {} }
+});
+
+function mapYtdlpError(err) {
+  if (/Private video|This video is private/i.test(err)) return 'E_PRIVATE';
+  if (/confirm your age|age-restricted/i.test(err)) return 'E_AGE';
+  if (/Unsupported URL|is not a valid URL/i.test(err)) return 'E_UNSUPPORTED';
+  if (/not a bot|Sign in to confirm/i.test(err)) return 'E_BOTCHECK';
+  if (/Video unavailable|has been removed/i.test(err)) return 'E_UNAVAILABLE';
+  if (/getaddrinfo|timed out|Network|Temporary failure|unable to download/i.test(err)) return 'E_NETWORK';
+  return (err || '').trim().slice(-400) || 'E_UNKNOWN';
+}
+
+let currentDl = null;
+
+ipcMain.handle('url-info', async (_e, url) => {
+  if (!YTDLP) throw new Error('E_NO_YTDLP');
+  try {
+    const out = await run(YTDLP, ['-J', '--no-playlist', '--no-warnings', url]);
+    const j = JSON.parse(out);
+    const info = j.entries ? j.entries[0] : j;
+    return {
+      title: info.title || 'video',
+      duration: info.duration || 0,
+      uploader: info.uploader || info.channel || '',
+      thumbnail: info.thumbnail || ''
+    };
+  } catch (e) { throw new Error(mapYtdlpError(String(e.message || e))); }
+});
+
+ipcMain.handle('url-download', async (_e, url) => {
+  if (!YTDLP) throw new Error('E_NO_YTDLP');
+  const dir = path.join(app.getPath('userData'), 'downloads');
+  fs.mkdirSync(dir, { recursive: true });
+  const args = ['--no-playlist', '--newline', '--no-warnings', '--no-quiet', '--restrict-filenames',
+    '-f', 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b',
+    '--merge-output-format', 'mp4',
+    '--ffmpeg-location', path.dirname(FFMPEG),
+    '-o', path.join(dir, '%(title).80B [%(id)s].%(ext)s'),
+    '--print', 'after_move:filepath',
+    url];
+  return await new Promise((resolve, reject) => {
+    const p = spawn(YTDLP, args, { windowsHide: true });
+    currentDl = p;
+    let err = '', fileOut = '';
+    p.stdout.on('data', d => {
+      for (const line of d.toString().split(/\r?\n/)) {
+        const m = line.match(/\[download\]\s+([\d.]+)%/);
+        if (m && win && !win.isDestroyed()) win.webContents.send('url-progress', Math.min(0.999, parseFloat(m[1]) / 100));
+        const t2 = line.trim();
+        if (t2 && (t2.startsWith('/') || /^[A-Za-z]:\\/.test(t2))) fileOut = t2; // printed final filepath
+      }
+    });
+    p.stderr.on('data', d => { err += d; if (err.length > 6000) err = err.slice(-3000); });
+    p.on('error', e => { currentDl = null; reject(e); });
+    p.on('close', code => {
+      currentDl = null;
+      if (code === null) return reject(new Error('cancelled'));
+      if (code !== 0) return reject(new Error(mapYtdlpError(err)));
+      if (fileOut && fs.existsSync(fileOut)) return resolve(fileOut);
+      // fallback: newest video file in the downloads dir
+      try {
+        const c = fs.readdirSync(dir).map(f => path.join(dir, f))
+          .filter(f => /\.(mp4|mkv|webm|mov)$/i.test(f))
+          .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+        if (c) return resolve(c);
+      } catch (_) {}
+      reject(new Error(mapYtdlpError(err)));
+    });
+  });
+});
+
+ipcMain.handle('cancel-download', () => {
+  if (currentDl) { try { currentDl.kill('SIGKILL'); } catch (_) {} currentDl = null; return true; }
+  return false;
+});
+
 ipcMain.handle('cancel-split', () => {
   if (currentJob) { try { currentJob.kill('SIGKILL'); } catch (_) {} currentJob = null; return true; }
   return false;

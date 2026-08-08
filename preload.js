@@ -13,6 +13,13 @@ contextBridge.exposeInMainWorld('splitora', {
     ipcRenderer.removeAllListeners('split-progress');
     ipcRenderer.on('split-progress', (_e, ratio) => cb(ratio));
   },
+  urlInfo: (url) => ipcRenderer.invoke('url-info', url),
+  urlDownload: (url) => ipcRenderer.invoke('url-download', url),
+  cancelDownload: () => ipcRenderer.invoke('cancel-download'),
+  onUrlProgress: (cb) => {
+    ipcRenderer.removeAllListeners('url-progress');
+    ipcRenderer.on('url-progress', (_e, ratio) => cb(ratio));
+  },
   // drag & drop: resolve the real filesystem path of a dropped File
   pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch (_) { return file.path || null; } }
 });

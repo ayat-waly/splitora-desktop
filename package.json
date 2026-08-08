@@ -1,7 +1,7 @@
 {
   "name": "splitora-desktop",
   "productName": "Splitora",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Splitora — قسّم فيديوهاتك باحترافية | Split your videos professionally",
   "main": "main.js",
   "author": "Splitora",
@@ -63,6 +63,15 @@
       "target": "AppImage",
       "icon": "build/icon.png",
       "category": "AudioVideo"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }
