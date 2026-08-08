@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('splitora', {
     ipcRenderer.removeAllListeners('split-progress');
     ipcRenderer.on('split-progress', (_e, ratio) => cb(ratio));
   },
+  saveTempPng: (dataUrl) => ipcRenderer.invoke('save-temp-png', dataUrl),
+  pickImage: () => ipcRenderer.invoke('pick-image'),
   urlInfo: (url) => ipcRenderer.invoke('url-info', url),
   urlDownload: (url) => ipcRenderer.invoke('url-download', url),
   cancelDownload: () => ipcRenderer.invoke('cancel-download'),

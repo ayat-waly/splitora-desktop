@@ -86,7 +86,8 @@ ipcMain.handle('pick-outdir', async () => {
 ipcMain.handle('default-outdir', () => app.getPath('videos') || app.getPath('downloads'));
 
 ipcMain.handle('split', async (_e, opts) => {
-  const { input, outDir, clipSec, quality, reels, duration } = opts;
+  const { input, outDir, clipSec, quality, reels, duration,
+          mode, ranges, fps, overlayPng, thumbnail } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
 
   // dedicated subfolder per job: <video name>_parts, deduped
@@ -96,63 +97,126 @@ ipcMain.handle('split', async (_e, opts) => {
   while (fs.existsSync(jobDir)) jobDir = path.join(outDir, `${base}_parts_${k++}`);
   fs.mkdirSync(jobDir, { recursive: true });
 
-  const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
-  const needsEncode = reels || quality !== 'copy';
+  const hasOverlay = overlayPng && fs.existsSync(overlayPng);
+  const useFps = fps && fps > 0;
+  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps;
 
-  const args = ['-hide_banner', '-y', '-i', input];
-  if (needsEncode) {
+  // scale/pad/fps chain; when a text overlay exists we switch to filter_complex
+  function filterArgs() {
     const vf = [];
     if (reels) {
       const w = quality === '720' ? 720 : 1080, h = quality === '720' ? 1280 : 1920;
       vf.push(`scale=${w}:${h}:force_original_aspect_ratio=decrease`, `pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black`);
     } else if (quality === '1080') vf.push('scale=-2:min(1080\\,ih)');
     else if (quality === '720') vf.push('scale=-2:min(720\\,ih)');
-    if (vf.length) args.push('-vf', vf.join(','));
-    args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
-      '-c:a', 'aac', '-b:a', '160k',
-      '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
-  } else {
-    args.push('-c', 'copy');
+    if (useFps) vf.push('fps=' + fps);
+    if (!hasOverlay) return vf.length ? ['-vf', vf.join(',')] : [];
+    const chain = vf.length
+      ? `[0:v]${vf.join(',')}[v0];[v0][1:v]overlay=(W-w)/2:(H-h)/2:format=auto[vout]`
+      : `[0:v][1:v]overlay=(W-w)/2:(H-h)/2:format=auto[vout]`;
+    return ['-filter_complex', chain];
   }
-  args.push('-map', '0:v:0', '-map', '0:a?',
-    '-f', 'segment', '-segment_time', String(clipSec));
-  if (needsEncode) args.push('-segment_time_delta', '0.05'); // second-accurate cuts with forced keyframes
-  args.push('-reset_timestamps', '1', '-segment_start_number', '1', outPat);
+  function mapArgs() {
+    return hasOverlay ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
+  }
+  const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '160k'];
 
-  return await new Promise((resolve, reject) => {
-    const p = spawn(FFMPEG, args, { windowsHide: true });
-    currentJob = p;
-    let err = '';
-    p.stderr.on('data', d => {
-      const s = d.toString();
-      err += s;
-      if (err.length > 6000) err = err.slice(-3000);
-      // progress: time=HH:MM:SS.xx
-      const m = s.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
-      if (m && duration > 0 && win && !win.isDestroyed()) {
-        const t = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
-        win.webContents.send('split-progress', Math.min(0.999, t / duration));
-      }
+  function runFfmpeg(args, progressBase, progressSpan, totalSec) {
+    return new Promise((resolve, reject) => {
+      const p = spawn(FFMPEG, args, { windowsHide: true });
+      currentJob = p;
+      let err = '';
+      p.stderr.on('data', d => {
+        const s = d.toString();
+        err += s; if (err.length > 6000) err = err.slice(-3000);
+        const m = s.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
+        if (m && totalSec > 0 && win && !win.isDestroyed()) {
+          const t = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+          const ratio = progressBase + Math.min(1, t / totalSec) * progressSpan;
+          win.webContents.send('split-progress', Math.min(0.999, ratio));
+        }
+      });
+      p.on('error', e => { currentJob = null; reject(e); });
+      p.on('close', code => {
+        currentJob = null;
+        if (code === null) return reject(new Error('cancelled'));
+        if (code !== 0) return reject(new Error(err.slice(-800) || ('ffmpeg exit ' + code)));
+        resolve();
+      });
     });
-    p.on('error', e => { currentJob = null; reject(e); });
-    p.on('close', code => {
-      currentJob = null;
-      if (code !== 0 && code !== null) return reject(new Error(err.slice(-800) || ('ffmpeg exit ' + code)));
-      let files = [];
+  }
+
+  if (mode === 'ranges' && Array.isArray(ranges) && ranges.length) {
+    // ===== custom from→to clips =====
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
+      const len = Math.max(0.1, r.end - r.start);
+      const out = path.join(jobDir, `Splitora_Part_${String(i + 1).padStart(3, '0')}.mp4`);
+      const args = ['-hide_banner', '-y', '-ss', String(r.start), '-i', input];
+      if (hasOverlay) args.push('-i', overlayPng);
+      args.push('-t', String(len));
+      if (needsEncode) { args.push(...filterArgs(), ...codecArgs); }
+      else { args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero'); }
+      args.push(...mapArgs(), out);
+      await runFfmpeg(args, i / ranges.length, 1 / ranges.length, len);
+    }
+  } else {
+    // ===== automatic equal splitting (segment muxer, single pass) =====
+    const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
+    const args = ['-hide_banner', '-y', '-i', input];
+    if (hasOverlay) args.push('-i', overlayPng);
+    if (needsEncode) {
+      args.push(...filterArgs(), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
+    } else {
+      args.push('-c', 'copy');
+    }
+    args.push(...mapArgs(), '-f', 'segment', '-segment_time', String(clipSec));
+    if (needsEncode) args.push('-segment_time_delta', '0.05'); // second-accurate cuts with forced keyframes
+    args.push('-reset_timestamps', '1', '-segment_start_number', '1', outPat);
+    await runFfmpeg(args, 0, 1, duration || 0);
+  }
+
+  // ===== collect parts =====
+  let files = fs.readdirSync(jobDir)
+    .filter(f => /^Splitora_Part_\d+\.mp4$/.test(f)).sort()
+    .map(f => ({ name: f, path: path.join(jobDir, f) }));
+  if (!files.length) throw new Error('no output produced');
+
+  // ===== embed thumbnail as cover art (attached_pic) =====
+  if (thumbnail && fs.existsSync(thumbnail)) {
+    for (const f of files) {
+      const tmp = f.path + '.cover.mp4';
       try {
-        files = fs.readdirSync(jobDir)
-          .filter(f => /^Splitora_Part_\d+\.mp4$/.test(f))
-          .sort()
-          .map(f => {
-            const full = path.join(jobDir, f);
-            return { name: f, size: fs.statSync(full).size, path: full };
-          });
-      } catch (_) {}
-      if (code === null) return reject(new Error('cancelled'));
-      if (!files.length) return reject(new Error(err.slice(-800) || 'no output produced'));
-      resolve({ dir: jobDir, files });
-    });
+        await run(FFMPEG, ['-hide_banner', '-y', '-i', f.path, '-i', thumbnail,
+          '-map', '0', '-map', '1', '-c', 'copy', '-c:v:1', 'mjpeg', '-disposition:v:1', 'attached_pic', tmp]);
+        fs.renameSync(tmp, f.path);
+      } catch (e) { try { fs.rmSync(tmp, { force: true }); } catch (_) {} }
+    }
+  }
+
+  files = files.map(f => ({ name: f.name, path: f.path, size: fs.statSync(f.path).size }));
+  return { dir: jobDir, files };
+});
+
+/* ---------- overlay / thumbnail helpers ---------- */
+ipcMain.handle('save-temp-png', (_e, dataUrl) => {
+  const m = /^data:image\/png;base64,(.+)$/.exec(dataUrl || '');
+  if (!m) throw new Error('bad png data');
+  const dir = path.join(app.getPath('userData'), 'tmp');
+  fs.mkdirSync(dir, { recursive: true });
+  const p = path.join(dir, 'overlay_' + Date.now() + '.png');
+  fs.writeFileSync(p, Buffer.from(m[1], 'base64'));
+  return p;
+});
+
+ipcMain.handle('pick-image', async () => {
+  const r = await dialog.showOpenDialog(win, {
+    title: 'اختر صورة الثامنيل',
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
   });
+  if (r.canceled || !r.filePaths[0]) return null;
+  return r.filePaths[0];
 });
 
 /* ---------- yt-dlp: download videos from URLs (YouTube, TikTok, 1800+ sites) ---------- */

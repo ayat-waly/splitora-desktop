@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: file:; script-src 'self' 'unsafe-inline'">
 <title>Splitora</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -84,6 +84,42 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .reels-row.active .sw::after{inset-inline-start:21px}
 .reels-row b{font-size:.85rem;color:var(--navy)}
 .reels-row span{font-size:.7rem;color:var(--muted);display:block;margin-top:2px;line-height:1.6}
+.mode-tabs{display:flex;gap:8px;margin-bottom:14px;background:#f0f4fb;border-radius:12px;padding:5px}
+.mode-tab{flex:1;border:none;background:transparent;border-radius:9px;padding:10px;font-family:inherit;font-size:.83rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s}
+.mode-tab.active{background:#fff;color:var(--navy);box-shadow:0 2px 8px rgba(20,36,63,.1)}
+.range-rows{display:flex;flex-direction:column;gap:9px}
+.range-row{display:flex;align-items:center;gap:9px;background:#f7faff;border:1px solid var(--border);border-radius:11px;padding:9px 12px}
+.range-row .idx{width:26px;height:26px;border-radius:8px;background:#e8f1ff;color:var(--blue);font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.range-row input{width:110px;border:1.5px solid var(--border);border-radius:9px;padding:8px 10px;font-family:inherit;font-size:.85rem;font-weight:600;color:var(--navy);outline:none;direction:ltr;text-align:center}
+.range-row input:focus{border-color:var(--blue)}
+.range-row .arrow{color:var(--muted);font-weight:700}
+.range-row .del{margin-inline-start:auto;background:transparent;border:none;color:#c86a6a;font-size:1rem;cursor:pointer;padding:4px 8px}
+.add-range{margin-top:10px;width:100%;background:#eef5ff;border:1.5px dashed #b9c8e4;color:var(--blue);border-radius:11px;padding:10px;font-family:inherit;font-size:.83rem;font-weight:700;cursor:pointer}
+.add-range:hover{border-color:var(--blue)}
+.range-hint{margin-top:9px;font-size:.72rem;color:var(--muted);line-height:1.7}
+.extras-grid{display:flex;flex-direction:column;gap:14px}
+.extra-block{border:1px solid var(--border);border-radius:12px;padding:14px}
+.extra-block>label{display:block;font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:10px}
+.text-input{width:100%;border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-family:inherit;font-size:.9rem;outline:none}
+.text-input:focus{border-color:var(--blue)}
+.style-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px}
+.style-opt{border:1.5px solid var(--border);border-radius:10px;padding:9px;background:#fff;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;color:var(--navy)}
+.style-opt.active{border-color:var(--purple);background:#f7f3ff;box-shadow:0 0 0 3px rgba(139,92,246,.12)}
+.pos-row{display:flex;gap:8px;margin-top:10px}
+.pos-opt{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px;background:#fff;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;color:var(--muted)}
+.pos-opt.active{border-color:var(--blue);background:#eef5ff;color:var(--blue)}
+canvas#textPreview{width:100%;max-width:340px;border-radius:10px;margin-top:11px;display:none;background:repeating-conic-gradient(#e8edf6 0% 25%,#f6f8fc 0% 50%) 50%/22px 22px}
+.fps-row{display:flex;gap:8px}
+.fps-opt{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:10px;background:#fff;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;color:var(--navy)}
+.fps-opt.active{border-color:var(--teal);background:#effbf9}
+.thumb-row{display:flex;align-items:center;gap:12px}
+.thumb-row img{width:96px;height:54px;object-fit:cover;border-radius:9px;background:#e8edf6;display:none}
+.thumb-row img.show{display:block}
+.thumb-btn{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer}
+.thumb-btn:hover{border-color:var(--blue);color:var(--blue)}
+.thumb-clear{background:transparent;border:none;color:#c86a6a;font-size:.78rem;font-weight:600;cursor:pointer;display:none}
+.thumb-clear.show{display:inline-block}
+.thumb-note{font-size:.7rem;color:var(--muted);margin-top:9px;line-height:1.7}
 .outdir-row{display:flex;align-items:center;gap:10px;margin-top:14px}
 .outdir-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.78rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .outdir-row button{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
@@ -173,6 +209,11 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
   <!-- 2: Duration -->
   <div class="card" id="stepDur" style="opacity:.45;pointer-events:none">
     <div class="step-title"><span class="step-num">2</span><span data-i18n="s2">حدد مدة كل مقطع</span></div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="modeAuto" data-i18n="modeAuto">⚡ تقسيم تلقائي متساوٍ</button>
+      <button class="mode-tab" id="modeRanges" data-i18n="modeRanges">🎯 مقاطع مخصصة (من → إلى)</button>
+    </div>
+    <div id="panelAuto">
     <div class="presets" id="presets">
       <button class="preset" data-sec="15"><b>15</b><span data-i18n="sec">ثانية</span></button>
       <button class="preset" data-sec="30"><b>30</b><span data-i18n="sec">ثانية</span></button>
@@ -185,7 +226,54 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
       <input type="number" id="customSec" min="1" step="1" placeholder="90">
       <label data-i18n="sec">ثانية</label>
     </div>
+    </div>
+    <div id="panelRanges" style="display:none">
+      <div class="range-rows" id="rangeRows"></div>
+      <button class="add-range" id="addRange" data-i18n="addRange">＋ إضافة مقطع جديد</button>
+      <div class="range-hint" data-i18n="rangeHint">اكتبي الوقت بالثواني (75) أو بصيغة دقيقة:ثانية (1:15) أو مع أجزاء الثانية (1:15.5) — كل سطر هيطلع مقطع مستقل بالترتيب.</div>
+    </div>
     <div class="estimate" id="estimate"></div>
+  </div>
+
+  <!-- Extras: text overlay, fps, thumbnail -->
+  <div class="card" id="stepExtras" style="opacity:.45;pointer-events:none">
+    <div class="step-title"><span class="step-num">✨</span><span data-i18n="sX">إضافات اختيارية</span></div>
+    <div class="extras-grid">
+      <div class="extra-block">
+        <label data-i18n="xText">📝 نص فوق الفيديو</label>
+        <input type="text" class="text-input" id="ovText" data-i18n-ph="xTextPh" placeholder="اكتبي النص هنا (اختياري)…">
+        <div class="style-row" id="styleRow">
+          <button class="style-opt active" data-style="shadow" data-i18n="st1">أبيض بظل</button>
+          <button class="style-opt" data-style="stroke" data-i18n="st2">أصفر بحدود</button>
+          <button class="style-opt" data-style="bar" data-i18n="st3">شريط داكن</button>
+          <button class="style-opt" data-style="pill" data-i18n="st4">كبسولة ملونة</button>
+        </div>
+        <div class="pos-row" id="posRow">
+          <button class="pos-opt" data-pos="top" data-i18n="pTop">أعلى</button>
+          <button class="pos-opt" data-pos="mid" data-i18n="pMid">وسط</button>
+          <button class="pos-opt active" data-pos="bottom" data-i18n="pBot">أسفل</button>
+        </div>
+        <canvas id="textPreview"></canvas>
+      </div>
+      <div class="extra-block">
+        <label data-i18n="xFps">🎞️ الفريم ريت (معدل الإطارات)</label>
+        <div class="fps-row" id="fpsRow">
+          <button class="fps-opt active" data-fps="0" data-i18n="fpsOrig">الأصلي</button>
+          <button class="fps-opt" data-fps="24">24</button>
+          <button class="fps-opt" data-fps="30">30</button>
+          <button class="fps-opt" data-fps="60">60</button>
+        </div>
+      </div>
+      <div class="extra-block">
+        <label data-i18n="xThumb">🖼️ ثامنيل المقاطع (صورة الغلاف)</label>
+        <div class="thumb-row">
+          <img id="thumbPrev" alt="">
+          <button class="thumb-btn" id="thumbBtn" data-i18n="thumbBtn">📁 اختيار صورة</button>
+          <button class="thumb-clear" id="thumbClear" data-i18n="thumbClear">إزالة ✕</button>
+        </div>
+        <div class="thumb-note" data-i18n="thumbNote">الصورة بتتدمج داخل كل مقطع كصورة غلاف (تظهر في مستكشف الملفات ومشغلات الفيديو). منصات مثل يوتيوب وتيك توك تسمح برفع الثامنيل يدوياً عند النشر.</div>
+      </div>
+    </div>
   </div>
 
   <!-- 3: Quality + output -->
@@ -243,6 +331,19 @@ const I18N={
   splitting:'✂️ جاري تقسيم الفيديو…',cancel:'إلغاء',
   openFolder:'📂 افتح المجلد',again:'🔄 تقسيم فيديو آخر',
   foot:'كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً',
+  modeAuto:'⚡ تقسيم تلقائي متساوٍ',modeRanges:'🎯 مقاطع مخصصة (من → إلى)',
+  addRange:'＋ إضافة مقطع جديد',
+  rangeHint:'اكتبي الوقت بالثواني (75) أو بصيغة دقيقة:ثانية (1:15) أو مع أجزاء الثانية (1:15.5) — كل سطر هيطلع مقطع مستقل بالترتيب.',
+  fromPh:'من (مثال 1:02)',toPh:'إلى (مثال 1:15)',
+  sX:'إضافات اختيارية',xText:'📝 نص فوق الفيديو',xTextPh:'اكتبي النص هنا (اختياري)…',
+  st1:'أبيض بظل',st2:'أصفر بحدود',st3:'شريط داكن',st4:'كبسولة ملونة',
+  pTop:'أعلى',pMid:'وسط',pBot:'أسفل',
+  xFps:'🎞️ الفريم ريت (معدل الإطارات)',fpsOrig:'الأصلي',
+  xThumb:'🖼️ ثامنيل المقاطع (صورة الغلاف)',thumbBtn:'📁 اختيار صورة',thumbClear:'إزالة ✕',
+  thumbNote:'الصورة بتتدمج داخل كل مقطع كصورة غلاف (تظهر في مستكشف الملفات ومشغلات الفيديو). منصات مثل يوتيوب وتيك توك تسمح برفع الثامنيل يدوياً عند النشر.',
+  estRanges:n=>`سيتم إنشاء <b>${n} مقطع</b> حسب الأوقات المحددة.`,
+  errRange:'راجعي الأوقات: لازم "من" أقل من "إلى" وداخل مدة الفيديو.',
+  errNoRanges:'ضيفي مقطع واحد على الأقل بأوقات صحيحة.',
   tabLocal:'📁 من جهازك',tabUrl:'🔗 من رابط (يوتيوب وغيره)',
   urlPh:'الصق رابط يوتيوب أو تيك توك أو أي موقع فيديو…',urlBtn:'جلب الفيديو',
   dlLbl:'⬇️ جاري تحميل الفيديو…',uFetching:'🔍 جاري قراءة معلومات الفيديو…',uDone:'✅ اكتمل التحميل — الفيديو جاهز للتقسيم تحت 👇',
@@ -268,6 +369,19 @@ const I18N={
   splitting:'✂️ Splitting your video…',cancel:'Cancel',
   openFolder:'📂 Open folder',again:'🔄 Split another video',
   foot:'All processing happens on your device — your files never leave it',
+  modeAuto:'⚡ Equal auto-split',modeRanges:'🎯 Custom clips (from → to)',
+  addRange:'＋ Add another clip',
+  rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), or with fractions (1:15.5) — each row becomes one clip, in order.',
+  fromPh:'From (e.g. 1:02)',toPh:'To (e.g. 1:15)',
+  sX:'Optional extras',xText:'📝 Text over video',xTextPh:'Type your text here (optional)…',
+  st1:'White + shadow',st2:'Yellow outline',st3:'Dark bar',st4:'Color pill',
+  pTop:'Top',pMid:'Middle',pBot:'Bottom',
+  xFps:'🎞️ Frame rate',fpsOrig:'Original',
+  xThumb:'🖼️ Clips thumbnail (cover image)',thumbBtn:'📁 Choose image',thumbClear:'Remove ✕',
+  thumbNote:'The image is embedded in every clip as cover art (shows in file explorers and players). Platforms like YouTube and TikTok let you upload a thumbnail manually when posting.',
+  estRanges:n=>`<b>${n} clips</b> will be created from your selected times.`,
+  errRange:'Check your times: "from" must be less than "to" and within the video duration.',
+  errNoRanges:'Add at least one clip with valid times.',
   tabLocal:'📁 From device',tabUrl:'🔗 From URL (YouTube & more)',
   urlPh:'Paste a YouTube, TikTok or any video site link…',urlBtn:'Fetch video',
   dlLbl:'⬇️ Downloading video…',uFetching:'🔍 Reading video info…',uDone:'✅ Download complete — ready to split below 👇',
@@ -321,7 +435,7 @@ async function setFile(p){
     $('fiSize').textContent=fmtSize(info.size);
     $('fiRes').textContent=info.width+'×'+info.height;
     $('fileInfo').classList.add('show');
-    ['stepDur','stepQ'].forEach(id=>{$(id).style.opacity=1;$(id).style.pointerEvents='auto';});
+    ['stepDur','stepExtras','stepQ'].forEach(id=>{$(id).style.opacity=1;$(id).style.pointerEvents='auto';});
     $('goBtn').disabled=false;
     updateEstimate();
   }catch(e){showErr(String(e.message||e));}
@@ -386,6 +500,12 @@ document.querySelectorAll('.preset').forEach(b=>b.onclick=()=>{
 $('customSec').oninput=e=>{const v=+e.target.value;if(v>0){clipSec=v;document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));}updateEstimate();};
 function updateEstimate(){
   const est=$('estimate');
+  if(splitMode==='ranges'){
+    const r=readRanges();
+    if(!r.error&&r.ranges&&r.ranges.length){est.innerHTML=I18N[lang].estRanges(r.ranges.length);est.classList.add('show');}
+    else est.classList.remove('show');
+    return;
+  }
   if(!videoDur||!clipSec||clipSec<=0){est.classList.remove('show');return;}
   const n=Math.ceil(videoDur/clipSec);
   const rem=videoDur-Math.floor(videoDur/clipSec)*clipSec;
@@ -394,12 +514,149 @@ function updateEstimate(){
   est.classList.add('show');
 }
 
+/* split mode + custom ranges */
+let splitMode='auto';
+$('modeAuto').onclick=()=>setMode('auto');
+$('modeRanges').onclick=()=>setMode('ranges');
+function setMode(m){
+  splitMode=m;
+  $('modeAuto').classList.toggle('active',m==='auto');
+  $('modeRanges').classList.toggle('active',m==='ranges');
+  $('panelAuto').style.display=m==='auto'?'block':'none';
+  $('panelRanges').style.display=m==='ranges'?'block':'none';
+  updateEstimate();
+}
+function parseTime(s){
+  s=String(s||'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)); // arabic digits
+  if(!s)return NaN;
+  const parts=s.split(':').map(x=>x.trim());
+  if(parts.some(x=>x===''||isNaN(+x)))return NaN;
+  let sec=0;for(const p of parts)sec=sec*60+(+p);
+  return sec;
+}
+function addRangeRow(from='',to=''){
+  const rows=$('rangeRows');
+  const row=document.createElement('div');
+  row.className='range-row';
+  row.innerHTML=`<span class="idx"></span>
+    <input type="text" class="r-from" placeholder="${t('fromPh')}" value="${from}">
+    <span class="arrow">→</span>
+    <input type="text" class="r-to" placeholder="${t('toPh')}" value="${to}">
+    <button class="del" title="حذف">✕</button>`;
+  row.querySelector('.del').onclick=()=>{row.remove();renumberRanges();updateEstimate();};
+  row.querySelectorAll('input').forEach(i=>i.oninput=updateEstimate);
+  rows.appendChild(row);
+  renumberRanges();
+}
+function renumberRanges(){
+  document.querySelectorAll('#rangeRows .range-row').forEach((r,i)=>r.querySelector('.idx').textContent=String(i+1).padStart(2,'0'));
+}
+function readRanges(){
+  const out=[];
+  for(const r of document.querySelectorAll('#rangeRows .range-row')){
+    const a=parseTime(r.querySelector('.r-from').value);
+    const b=parseTime(r.querySelector('.r-to').value);
+    if(isNaN(a)&&isNaN(b))continue; // empty row: skip
+    if(isNaN(a)||isNaN(b)||a>=b||(videoDur&&b>videoDur+0.5))return {error:true};
+    out.push({start:a,end:b});
+  }
+  return {ranges:out};
+}
+$('addRange').onclick=()=>addRangeRow();
+addRangeRow(); // start with one row
+
+/* text overlay */
+let ovStyle='shadow',ovPos='bottom';
+document.querySelectorAll('#styleRow .style-opt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#styleRow .style-opt').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');ovStyle=b.dataset.style;drawTextPreview();
+});
+document.querySelectorAll('#posRow .pos-opt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#posRow .pos-opt').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');ovPos=b.dataset.pos;drawTextPreview();
+});
+$('ovText').oninput=drawTextPreview;
+function outDims(){
+  if(reels)return quality==='720'?[720,1280]:[1080,1920];
+  let w=videoW||1280,h=videoH||720;
+  const cap=quality==='1080'?1080:quality==='720'?720:0;
+  if(cap&&h>cap){w=Math.max(2,Math.round(w*cap/h/2)*2);h=cap;}
+  return [w,h];
+}
+function drawTextCanvas(W,H){
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d');
+  const text=$('ovText').value.trim();
+  if(!text)return null;
+  const fsz=Math.round(Math.min(W,H*0.56)*0.07);
+  ctx.font=`bold ${fsz}px "IBM Plex Sans Arabic","Segoe UI",Arial,sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  const lines=text.split(/\n/).slice(0,3);
+  const lh=fsz*1.35;
+  const cy=ovPos==='top'?H*0.10:ovPos==='mid'?H*0.5:H*0.88;
+  const y0=cy-(lines.length-1)*lh/2;
+  lines.forEach((line,i)=>{
+    const y=y0+i*lh, x=W/2;
+    const tw=ctx.measureText(line).width;
+    if(ovStyle==='bar'){
+      ctx.save();ctx.fillStyle='rgba(10,16,28,.62)';
+      roundRect(ctx,x-tw/2-fsz*.7,y-lh/2,tw+fsz*1.4,lh,fsz*.3);ctx.fill();ctx.restore();
+      ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);
+    }else if(ovStyle==='pill'){
+      ctx.save();
+      const g=ctx.createLinearGradient(x-tw/2,0,x+tw/2,0);
+      g.addColorStop(0,'#2f7cf6');g.addColorStop(1,'#8b5cf6');
+      ctx.fillStyle=g;
+      roundRect(ctx,x-tw/2-fsz*.8,y-lh/2,tw+fsz*1.6,lh,lh/2);ctx.fill();ctx.restore();
+      ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);
+    }else if(ovStyle==='stroke'){
+      ctx.lineWidth=Math.max(2,fsz*.14);ctx.strokeStyle='#000';ctx.lineJoin='round';
+      ctx.strokeText(line,x,y);
+      ctx.fillStyle='#ffd60a';ctx.fillText(line,x,y);
+    }else{ // shadow
+      ctx.save();ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=fsz*.35;ctx.shadowOffsetY=fsz*.06;
+      ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);ctx.restore();
+    }
+  });
+  return c;
+}
+function roundRect(ctx,x,y,w,hh,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+hh,r);ctx.arcTo(x+w,y+hh,x,y+hh,r);
+  ctx.arcTo(x,y+hh,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function drawTextPreview(){
+  const pv=$('textPreview');
+  const text=$('ovText').value.trim();
+  if(!text){pv.style.display='none';return;}
+  const [W,H]=outDims();
+  const c=drawTextCanvas(W,H);
+  if(!c){pv.style.display='none';return;}
+  pv.width=W;pv.height=H;
+  pv.getContext('2d').drawImage(c,0,0);
+  pv.style.display='block';pv.style.aspectRatio=W+'/'+H;
+}
+
+/* fps */
+let fpsVal=0;
+document.querySelectorAll('#fpsRow .fps-opt').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#fpsRow .fps-opt').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');fpsVal=+b.dataset.fps;
+});
+
+/* thumbnail */
+let thumbPath=null;
+$('thumbBtn').onclick=async()=>{
+  const p=await window.splitora.pickImage();
+  if(p){thumbPath=p;$('thumbPrev').src='file:///'+p.replace(/\\/g,'/');$('thumbPrev').classList.add('show');$('thumbClear').classList.add('show');}
+};
+$('thumbClear').onclick=()=>{thumbPath=null;$('thumbPrev').classList.remove('show');$('thumbClear').classList.remove('show');};
+
 /* quality + reels + outdir */
 document.querySelectorAll('#qualityOpts .opt').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#qualityOpts .opt').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');quality=b.dataset.q;
+  b.classList.add('active');quality=b.dataset.q;drawTextPreview();
 });
-$('reelsRow').onclick=()=>{reels=!reels;$('reelsRow').classList.toggle('active',reels);};
+$('reelsRow').onclick=()=>{reels=!reels;$('reelsRow').classList.toggle('active',reels);drawTextPreview();};
 $('outBtn').onclick=async()=>{const d=await window.splitora.pickOutDir();if(d){outDir=d;$('outPath').textContent=d;}};
 window.splitora.defaultOutDir().then(d=>{outDir=d;$('outPath').textContent=d;});
 
@@ -412,14 +669,26 @@ window.splitora.onProgress(r=>{
 });
 $('goBtn').onclick=async()=>{
   if(!filePath)return;
-  if(!clipSec||clipSec<=0){showErr(t('errDur'));return;}
+  let rangesArr=null;
+  if(splitMode==='ranges'){
+    const r=readRanges();
+    if(r.error){showErr(t('errRange'));return;}
+    if(!r.ranges.length){showErr(t('errNoRanges'));return;}
+    rangesArr=r.ranges;
+  }else if(!clipSec||clipSec<=0){showErr(t('errDur'));return;}
   $('goBtn').disabled=true;
   $('progressCard').classList.add('show');
   $('resultsCard').classList.remove('show');
   $('pbarFill').style.width='0%';$('pPct').textContent='0%';
   $('progressCard').scrollIntoView({behavior:'smooth'});
   try{
-    const res=await window.splitora.split({input:filePath,outDir,clipSec,quality,reels,duration:videoDur});
+    let overlayPng=null;
+    const oc=drawTextCanvas(...outDims());
+    if(oc)overlayPng=await window.splitora.saveTempPng(oc.toDataURL('image/png'));
+    const res=await window.splitora.split({
+      input:filePath,outDir,clipSec,quality,reels,duration:videoDur,
+      mode:splitMode,ranges:rangesArr,fps:fpsVal,overlayPng,thumbnail:thumbPath
+    });
     resultDir=res.dir;
     $('progressCard').classList.remove('show');
     $('doneBanner').textContent=I18N[lang].done(res.files.length);
