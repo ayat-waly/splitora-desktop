@@ -6,3 +6,6 @@ dist/
 scripts/private-key.pem
 scripts/*.pem
 *.pem
+
+# بيانات العملاء المحلية (خصوصية)
+scripts/data/
