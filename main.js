@@ -174,7 +174,7 @@ ipcMain.handle('split', async (_e, opts) => {
   function mapArgs() {
     return (hasWatermark || hasOverlay) ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
   }
-  const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '160k'];
+  const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'];
 
   function runFfmpeg(args, progressBase, progressSpan, totalSec) {
     return new Promise((resolve, reject) => {
