@@ -771,7 +771,7 @@ $('goBtn').onclick=async()=>{
     $('progressCard').classList.remove('show');
     const m=String(e.message||e);
     if(/E_LICENSE_LOCKED/.test(m)){ showLock(false); }
-    else showErr(/cancelled/.test(m)?t('cancelled'):t('errProc')+m.slice(0,300));
+    else showErr(/cancelled/.test(m)?t('cancelled'):t('errProc')+m.slice(-450));
   }finally{
     $('goBtn').disabled=false;
   }

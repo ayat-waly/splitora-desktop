@@ -42,6 +42,15 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
 /* ---------- helpers ---------- */
+/* يدوّر على أقرب سطر فيه كلمة خطأ فعلية بدل ما ياخد آخر جزء عشوائي من اللوج
+   (اللي غالباً بيكون بس معلومات الفيديو العادية) */
+function extractFfmpegError(stderrText) {
+  const lines = String(stderrText || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const errLines = lines.filter(l => /error|invalid|failed|no such|unable|unrecognized|cannot|could not/i.test(l));
+  if (errLines.length) return errLines.slice(-3).join(' — ').slice(0, 500);
+  return lines.slice(-5).join(' — ').slice(-500);
+}
+
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { windowsHide: true });
@@ -186,7 +195,7 @@ ipcMain.handle('split', async (_e, opts) => {
       p.on('close', code => {
         currentJob = null;
         if (code === null) return reject(new Error('cancelled'));
-        if (code !== 0) return reject(new Error(err.slice(-800) || ('ffmpeg exit ' + code)));
+        if (code !== 0) return reject(new Error(extractFfmpegError(err) || ('ffmpeg exit ' + code)));
         resolve();
       });
     });
