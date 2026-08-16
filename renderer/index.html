@@ -230,7 +230,7 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
     <div id="panelRanges" style="display:none">
       <div class="range-rows" id="rangeRows"></div>
       <button class="add-range" id="addRange" data-i18n="addRange">＋ إضافة مقطع جديد</button>
-      <div class="range-hint" data-i18n="rangeHint">اكتبي الوقت بالثواني (75) أو بصيغة دقيقة:ثانية (1:15) أو مع أجزاء الثانية (1:15.5) — كل سطر هيطلع مقطع مستقل بالترتيب.</div>
+      <div class="range-hint" data-i18n="rangeHint">اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.</div>
     </div>
     <div class="estimate" id="estimate"></div>
   </div>
@@ -333,7 +333,7 @@ const I18N={
   foot:'كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً',
   modeAuto:'⚡ تقسيم تلقائي متساوٍ',modeRanges:'🎯 مقاطع مخصصة (من → إلى)',
   addRange:'＋ إضافة مقطع جديد',
-  rangeHint:'اكتبي الوقت بالثواني (75) أو بصيغة دقيقة:ثانية (1:15) أو مع أجزاء الثانية (1:15.5) — كل سطر هيطلع مقطع مستقل بالترتيب.',
+  rangeHint:'اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.',
   fromPh:'من (مثال 1:02)',toPh:'إلى (مثال 1:15)',
   sX:'إضافات اختيارية',xText:'📝 نص فوق الفيديو',xTextPh:'اكتبي النص هنا (اختياري)…',
   st1:'أبيض بظل',st2:'أصفر بحدود',st3:'شريط داكن',st4:'كبسولة ملونة',
@@ -371,7 +371,7 @@ const I18N={
   foot:'All processing happens on your device — your files never leave it',
   modeAuto:'⚡ Equal auto-split',modeRanges:'🎯 Custom clips (from → to)',
   addRange:'＋ Add another clip',
-  rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), or with fractions (1:15.5) — each row becomes one clip, in order.',
+  rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), hours:minutes:seconds (00:01:25), or with a frame number (00:01:25:13) — each row becomes one clip, in order.',
   fromPh:'From (e.g. 1:02)',toPh:'To (e.g. 1:15)',
   sX:'Optional extras',xText:'📝 Text over video',xTextPh:'Type your text here (optional)…',
   st1:'White + shadow',st2:'Yellow outline',st3:'Dark bar',st4:'Color pill',
@@ -413,7 +413,7 @@ const $=id=>document.getElementById(id);
 const fmtTime=s=>{s=Math.round(s);const m=Math.floor(s/60),ss=s%60,h=Math.floor(m/60);return (h?h+':':'')+String(h?m%60:m).padStart(h?2:1,'0')+':'+String(ss).padStart(2,'0');};
 const fmtSize=b=>b>1e9?(b/1e9).toFixed(2)+' GB':b>1e6?(b/1e6).toFixed(1)+' MB':(b/1e3).toFixed(0)+' KB';
 
-let filePath=null,videoDur=0,clipSec=60,quality='copy',reels=false,outDir='',resultDir='';
+let filePath=null,videoDur=0,videoFps=30,clipSec=60,quality='copy',reels=false,outDir='',resultDir='';
 
 /* file selection */
 const drop=$('drop');
@@ -429,7 +429,7 @@ drop.addEventListener('drop',async ev=>{
 async function setFile(p){
   try{
     const info=await window.splitora.probe(p);
-    filePath=p;videoDur=info.duration;
+    filePath=p;videoDur=info.duration;videoFps=info.fps||30;
     $('fiName').textContent=info.name;
     $('fiDur').textContent=fmtTime(info.duration);
     $('fiSize').textContent=fmtSize(info.size);
@@ -531,7 +531,13 @@ function parseTime(s){
   if(!s)return NaN;
   const parts=s.split(':').map(x=>x.trim());
   if(parts.some(x=>x===''||isNaN(+x)))return NaN;
+  let frames=0;
+  if(parts.length>=4){
+    frames=+parts.pop(); // آخر جزء = رقم الفريم (مثال 00:01:25:13)
+    if(frames<0)return NaN;
+  }
   let sec=0;for(const p of parts)sec=sec*60+(+p);
+  if(frames)sec+=frames/(videoFps>0?videoFps:30);
   return sec;
 }
 function addRangeRow(from='',to=''){

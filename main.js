@@ -74,7 +74,15 @@ ipcMain.handle('probe', async (_e, file) => {
   const v = (j.streams || []).find(s => s.codec_type === 'video') || {};
   const duration = parseFloat(j.format?.duration || v.duration || 0);
   const size = parseInt(j.format?.size || 0, 10) || fs.statSync(file).size;
-  return { duration, size, width: v.width || 0, height: v.height || 0, name: path.basename(file) };
+  let fps = 30;
+  const rate = v.avg_frame_rate || v.r_frame_rate || '';
+  if (rate && rate.includes('/')) {
+    const [num, den] = rate.split('/').map(Number);
+    if (den > 0 && num > 0) fps = num / den;
+  } else if (rate && !isNaN(+rate) && +rate > 0) {
+    fps = +rate;
+  }
+  return { duration, size, width: v.width || 0, height: v.height || 0, name: path.basename(file), fps };
 });
 
 ipcMain.handle('pick-outdir', async () => {
