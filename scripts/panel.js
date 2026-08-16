@@ -25,8 +25,8 @@ const PRIVATE_KEY_PATH = path.join(__dirname, 'private-key.pem');
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'customers.json');
 
-const PLAN_DAYS = { monthly: 30, yearly: 365, lifetime: 365 * 100 };
-const PLAN_LABELS = { monthly: 'شهري', yearly: 'سنوي', lifetime: 'مدى الحياة' };
+const PLAN_DAYS = { weekly: 7, monthly: 30, five_months: 150, yearly: 365, lifetime: 365 * 100 };
+const PLAN_LABELS = { weekly: 'أسبوعي', monthly: 'شهري', five_months: '5 شهور', yearly: 'سنوي', lifetime: 'مدى الحياة' };
 
 function b64u(buf) {
   return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -112,7 +112,9 @@ const PAGE_HTML = `<!DOCTYPE html>
       <div class="field">
         <label>نوع الباقة</label>
         <select id="plan">
+          <option value="weekly">أسبوعي (7 أيام)</option>
           <option value="monthly">شهري (30 يوم)</option>
+          <option value="five_months">5 شهور (150 يوم)</option>
           <option value="yearly">سنوي (365 يوم)</option>
           <option value="lifetime">مدى الحياة</option>
         </select>
@@ -151,7 +153,7 @@ const WA_NUMBER='201021830223'; // +20 10 21830223
 let lastPayload=null,lastKey='';
 const tableWrap=document.getElementById('tableWrap');
 const searchBox=document.getElementById('searchBox');
-const planLabels={monthly:'شهري',yearly:'سنوي',lifetime:'مدى الحياة'};
+const planLabels={weekly:'أسبوعي',monthly:'شهري',five_months:'5 شهور',yearly:'سنوي',lifetime:'مدى الحياة'};
 
 let allCustomers=[];
 

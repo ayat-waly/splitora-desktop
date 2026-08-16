@@ -7,7 +7,7 @@
   لتوقيع مفاتيح تراخيص صحيحة.
 
   الاستخدام:
-    node scripts/keygen.js <monthly|yearly|lifetime> ["اسم العميل (اختياري)"]
+    node scripts/keygen.js <weekly|monthly|five_months|yearly|lifetime> ["اسم العميل (اختياري)"]
 
   أمثلة:
     node scripts/keygen.js monthly
@@ -28,7 +28,9 @@ const path = require('path');
 const PRIVATE_KEY_PATH = path.join(__dirname, 'private-key.pem');
 
 const PLAN_DAYS = {
+  weekly: 7,
   monthly: 30,
+  five_months: 150,
   yearly: 365,
   lifetime: 365 * 100, // 100 سنة تقريباً = مدى الحياة عملياً
 };
@@ -42,7 +44,7 @@ function main() {
   const customer = process.argv[3] || '';
 
   if (!PLAN_DAYS[plan]) {
-    console.error('❌ استخدمي: node scripts/keygen.js <monthly|yearly|lifetime> ["اسم العميل"]');
+    console.error('❌ استخدمي: node scripts/keygen.js <weekly|monthly|five_months|yearly|lifetime> ["اسم العميل"]');
     process.exit(1);
   }
 
