@@ -152,6 +152,24 @@ canvas#textPreview{width:100%;max-width:340px;border-radius:10px;margin-top:11px
 .err{display:none;margin-top:12px;background:#fef1f1;border:1px solid #f6c7c7;border-radius:11px;padding:12px 16px;font-size:.8rem;color:#b02a2a;line-height:1.7;word-break:break-word}
 .err.show{display:block}
 footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
+/* license */
+.trial-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,#fff7e6,#fffdf5);border:1.5px solid #f5cf7a;border-radius:12px;padding:11px 16px;margin-top:14px;font-size:.82rem;color:#6b5410}
+.trial-bar b{color:var(--navy)}
+.trial-bar.warn{background:linear-gradient(135deg,#fff0ee,#fff7f6);border-color:#f3a89c;color:#7a2418}
+.trial-btn{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:999px;padding:7px 16px;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.lic-badge{display:inline-flex;align-items:center;gap:6px;background:#eafaf6;color:#0d7a5f;border:1px solid #b9ecdd;border-radius:999px;padding:6px 14px;font-size:.78rem;font-weight:700;margin-top:14px}
+.lock-screen{position:fixed;inset:0;background:rgba(20,36,63,.55);display:none;align-items:center;justify-content:center;z-index:999;padding:20px}
+.lock-screen.show{display:flex}
+.lock-box{background:#fff;border-radius:20px;padding:32px 28px;max-width:420px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(20,36,63,.3)}
+.lock-box img{width:64px;height:64px;border-radius:16px;margin-bottom:12px}
+.lock-box h2{color:var(--navy);font-size:1.15rem;margin-bottom:6px}
+.lock-box p{color:var(--muted);font-size:.85rem;line-height:1.7;margin-bottom:16px}
+.lock-box input{width:100%;border:1.5px solid var(--border);border-radius:11px;padding:12px 14px;font-family:inherit;font-size:.85rem;outline:none;direction:ltr;text-align:center;margin-bottom:10px}
+.lock-box input:focus{border-color:var(--blue)}
+.lock-box .lock-err{color:#c0392b;font-size:.78rem;margin-bottom:8px;display:none}
+.lock-box .lock-err.show{display:block}
+.lock-box button.act{width:100%;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:11px;padding:13px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
+.lock-box .lock-close{background:none;border:none;color:var(--muted);font-size:.78rem;margin-top:12px;cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -169,6 +187,26 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
       <button class="lang-btn" id="langBtn" onclick="toggleLang()">English</button>
     </div>
   </header>
+
+  <!-- license banner -->
+  <div class="trial-bar" id="trialBar" style="display:none">
+    <span id="trialMsg"></span>
+    <button class="trial-btn" id="trialActBtn" data-i18n="licActivate">🔑 تفعيل الاشتراك</button>
+  </div>
+  <div class="lic-badge" id="licBadge" style="display:none"></div>
+
+  <!-- lock / activation screen -->
+  <div class="lock-screen" id="lockScreen">
+    <div class="lock-box">
+      <img src="logo.webp" alt="Splitora">
+      <h2 id="lockTitle" data-i18n="licLockTitle">فترة التجربة انتهت</h2>
+      <p id="lockDesc" data-i18n="licLockDesc">أدخلي مفتاح التفعيل عشان تكملي استخدام Splitora بدون علامة مائية.</p>
+      <input type="text" id="licKeyInput" placeholder="XXXX...">
+      <div class="lock-err" id="licErr"></div>
+      <button class="act" id="licActivateBtn" data-i18n="licActivateBtn">تفعيل</button>
+      <button class="lock-close" id="lockCloseBtn" data-i18n="licLater" style="display:none">لاحقاً</button>
+    </div>
+  </div>
 
   <!-- 1: File -->
   <div class="card">
@@ -357,7 +395,17 @@ const I18N={
   E_UNKNOWN:'حدث خطأ غير متوقع أثناء التحميل.',
   estimate:(n,d,last)=>`سيتم تقسيم الفيديو إلى <b>${n} مقطع</b> — ${n-(last?1:0)} مقطع مدة كل منها <b>${d} ثانية</b>${last?` + مقطع أخير مدته <b>${last} ثانية</b>`:''}.`,
   done:n=>`✅ تم التقسيم بنجاح! ${n} مقطع محفوظ`,errDur:'من فضلك أدخل مدة صحيحة بالثواني.',
-  errProc:'حدث خطأ أثناء المعالجة: ',cancelled:'تم الإلغاء.'},
+  errProc:'حدث خطأ أثناء المعالجة: ',cancelled:'تم الإلغاء.',
+  licTrial:d=>`🎁 نسخة تجريبية — باقي ${d} ${d===1?'يوم':'أيام'}. المقاطع المُصدَّرة عليها علامة Splitora المائية.`,
+  licLocked:'⏰ انتهت الفترة التجريبية. فعّلي مفتاح الاشتراك عشان تكملي التصدير.',
+  licBadge:'✅ نسخة مفعّلة',
+  licActivate:'🔑 تفعيل الاشتراك',licActivateBtn:'تفعيل',licLater:'لاحقاً',
+  licLockTitle:'فترة التجربة انتهت',licLockDesc:'أدخلي مفتاح التفعيل عشان تكملي استخدام Splitora بدون علامة مائية.',
+  licLockTitleTrial:'فعّلي اشتراكك',licLockDescTrial:'أدخلي مفتاح التفعيل عشان تشيلي العلامة المائية من الفيديوهات. تقدري كمان تكملي التجربة المجانية لو ضغطتي لاحقاً.',
+  licErrFormat:'المفتاح غير صحيح — تأكدي إنك نسختيه كامل.',
+  licErrSig:'المفتاح غير صالح.',licErrExpired:'المفتاح منتهي الصلاحية.',
+  licSuccess:'🎉 تم التفعيل بنجاح!',
+  licLockedExport:'⏰ انتهت الفترة التجريبية. فعّلي مفتاح الاشتراك عشان تقدري تصدّري الفيديو.'},
  en:{tagline:'Split your videos professionally — full speed, no internet needed',tagFast:'⚡ Native FFmpeg engine',
   s1:'Choose your video',dropT:'Drag a video here or click to browse',dropS:'MP4 · MOV · WebM · MKV · AVI — any size, no limits',
   fName:'File name',fDur:'Duration',fSize:'Size',fRes:'Dimensions',
@@ -395,7 +443,17 @@ const I18N={
   E_UNKNOWN:'An unexpected error occurred while downloading.',
   estimate:(n,d,last)=>`Your video will be split into <b>${n} parts</b> — ${n-(last?1:0)} parts of <b>${d}s</b> each${last?` + a final part of <b>${last}s</b>`:''}.`,
   done:n=>`✅ Done! ${n} parts saved`,errDur:'Please enter a valid duration in seconds.',
-  errProc:'Processing failed: ',cancelled:'Cancelled.'}
+  errProc:'Processing failed: ',cancelled:'Cancelled.',
+  licTrial:d=>`🎁 Free trial — ${d} day${d===1?'':'s'} left. Exported clips carry the Splitora watermark.`,
+  licLocked:'⏰ Trial period ended. Activate your subscription to keep exporting.',
+  licBadge:'✅ Licensed',
+  licActivate:'🔑 Activate',licActivateBtn:'Activate',licLater:'Later',
+  licLockTitle:'Trial period ended',licLockDesc:'Enter your activation key to keep using Splitora without a watermark.',
+  licLockTitleTrial:'Activate your subscription',licLockDescTrial:'Enter your activation key to remove the watermark from exported videos. You can also continue your free trial by clicking Later.',
+  licErrFormat:'Invalid key — make sure you copied it in full.',
+  licErrSig:'This key is not valid.',licErrExpired:'This key has expired.',
+  licSuccess:'🎉 Activated successfully!',
+  licLockedExport:'⏰ Trial period ended. Activate your subscription to export the video.'}
 };
 let lang='ar';
 const t=k=>I18N[lang][k];
@@ -712,7 +770,8 @@ $('goBtn').onclick=async()=>{
   }catch(e){
     $('progressCard').classList.remove('show');
     const m=String(e.message||e);
-    showErr(/cancelled/.test(m)?t('cancelled'):t('errProc')+m.slice(0,300));
+    if(/E_LICENSE_LOCKED/.test(m)){ showLock(false); }
+    else showErr(/cancelled/.test(m)?t('cancelled'):t('errProc')+m.slice(0,300));
   }finally{
     $('goBtn').disabled=false;
   }
@@ -723,6 +782,60 @@ $('againBtn').onclick=()=>{
   $('resultsCard').classList.remove('show');
   window.scrollTo({top:0,behavior:'smooth'});
 };
+
+/* license / trial */
+let licMode='trial';
+function showLock(dismissible){
+  $('lockTitle').textContent=dismissible?t('licLockTitleTrial'):t('licLockTitle');
+  $('lockDesc').textContent=dismissible?t('licLockDescTrial'):t('licLockDesc');
+  $('lockCloseBtn').style.display=dismissible?'inline-block':'none';
+  $('licErr').classList.remove('show');
+  $('licKeyInput').value='';
+  $('lockScreen').classList.add('show');
+}
+function hideLock(){ $('lockScreen').classList.remove('show'); }
+async function refreshLicenseUI(){
+  const st=await window.splitora.licenseStatus();
+  licMode=st.mode;
+  if(st.mode==='licensed'){
+    $('trialBar').style.display='none';
+    $('licBadge').style.display='inline-flex';
+    $('licBadge').textContent=t('licBadge');
+  }else if(st.mode==='trial'){
+    $('licBadge').style.display='none';
+    $('trialBar').style.display='flex';
+    $('trialBar').classList.remove('warn');
+    $('trialMsg').textContent=t('licTrial')(st.daysLeft);
+  }else{ // locked
+    $('licBadge').style.display='none';
+    $('trialBar').style.display='flex';
+    $('trialBar').classList.add('warn');
+    $('trialMsg').textContent=t('licLocked');
+    showLock(false);
+  }
+}
+$('trialActBtn').onclick=()=>showLock(true);
+$('lockCloseBtn').onclick=()=>hideLock();
+$('licActivateBtn').onclick=async()=>{
+  const key=$('licKeyInput').value.trim();
+  $('licErr').classList.remove('show');
+  if(!key){ $('licErr').textContent=t('licErrFormat'); $('licErr').classList.add('show'); return; }
+  const btn=$('licActivateBtn'); btn.disabled=true;
+  try{
+    const res=await window.splitora.licenseActivate(key);
+    if(res.ok){
+      hideLock();
+      await refreshLicenseUI();
+      showErr(t('licSuccess'));
+    }else{
+      const map={format:t('licErrFormat'),malformed:t('licErrFormat'),signature:t('licErrSig'),expired:t('licErrExpired')};
+      $('licErr').textContent=map[res.reason]||t('licErrFormat');
+      $('licErr').classList.add('show');
+    }
+  }finally{ btn.disabled=false; }
+};
+refreshLicenseUI();
+
 applyLang();
 </script>
 </body>

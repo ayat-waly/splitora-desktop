@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const license = require('./license');
 
 /* ffmpeg/ffprobe binaries bundled via ffmpeg-static & ffprobe-static.
    Inside a packaged app they live in app.asar.unpacked (see asarUnpack in package.json). */
@@ -34,6 +35,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  license.init(app.getPath('userData'));
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
@@ -56,6 +58,10 @@ function hms(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = (sec % 60).toFixed(2);
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(5, '0')}`;
 }
+
+/* ---------- license ---------- */
+ipcMain.handle('license-status', () => license.getStatus());
+ipcMain.handle('license-activate', (_e, key) => license.activate(key));
 
 /* ---------- IPC ---------- */
 ipcMain.handle('pick-video', async () => {
@@ -98,6 +104,11 @@ ipcMain.handle('split', async (_e, opts) => {
           mode, ranges, fps, overlayPng, thumbnail } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
 
+  const licStatus = license.getStatus();
+  if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
+  const watermarkPath = licStatus.watermark ? path.join(__dirname, 'build', 'icon.png') : null;
+  const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
+
   // dedicated subfolder per job: <video name>_parts, deduped
   const base = path.basename(input).replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 60) || 'video';
   let jobDir = path.join(outDir, base + '_parts');
@@ -107,9 +118,17 @@ ipcMain.handle('split', async (_e, opts) => {
 
   const hasOverlay = overlayPng && fs.existsSync(overlayPng);
   const useFps = fps && fps > 0;
-  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps;
+  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps || hasWatermark;
 
-  // scale/pad/fps chain; when a text overlay exists we switch to filter_complex
+  // ترتيب مداخل الـ overlay: العلامة المائية (لو الفترة تجريبية) ثم النص المخصص للمستخدم
+  function overlayInputs() {
+    const list = [];
+    if (hasWatermark) list.push(watermarkPath);
+    if (hasOverlay) list.push(overlayPng);
+    return list;
+  }
+
+  // scale/pad/fps chain، وسلسلة overlay عامة بتدعم علامة مائية + نص فوق بعض
   function filterArgs() {
     const vf = [];
     if (reels) {
@@ -118,14 +137,33 @@ ipcMain.handle('split', async (_e, opts) => {
     } else if (quality === '1080') vf.push('scale=-2:min(1080\\,ih)');
     else if (quality === '720') vf.push('scale=-2:min(720\\,ih)');
     if (useFps) vf.push('fps=' + fps);
-    if (!hasOverlay) return vf.length ? ['-vf', vf.join(',')] : [];
-    const chain = vf.length
-      ? `[0:v]${vf.join(',')}[v0];[v0][1:v]overlay=(W-w)/2:(H-h)/2:format=auto[vout]`
-      : `[0:v][1:v]overlay=(W-w)/2:(H-h)/2:format=auto[vout]`;
-    return ['-filter_complex', chain];
+
+    if (!hasWatermark && !hasOverlay) return vf.length ? ['-vf', vf.join(',')] : [];
+
+    const filters = [];
+    let cur = '[0:v]';
+    if (vf.length) { filters.push(`${cur}${vf.join(',')}[vbase]`); cur = '[vbase]'; }
+
+    const steps = [];
+    let inputIdx = 1;
+    if (hasWatermark) steps.push({ input: inputIdx++, scale: 'iw*0.16:-1', pos: 'W-w-16:H-h-16' });
+    if (hasOverlay) steps.push({ input: inputIdx++, scale: null, pos: '(W-w)/2:(H-h)/2' });
+
+    steps.forEach((s, i) => {
+      const isLast = i === steps.length - 1;
+      const outLabel = isLast ? '[vout]' : `[vtmp${i}]`;
+      if (s.scale) {
+        filters.push(`[${s.input}:v]scale=${s.scale}[ov${i}]`);
+        filters.push(`${cur}[ov${i}]overlay=${s.pos}:format=auto${outLabel}`);
+      } else {
+        filters.push(`${cur}[${s.input}:v]overlay=${s.pos}:format=auto${outLabel}`);
+      }
+      cur = outLabel;
+    });
+    return ['-filter_complex', filters.join(';')];
   }
   function mapArgs() {
-    return hasOverlay ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
+    return (hasWatermark || hasOverlay) ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
   }
   const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '160k'];
 
@@ -161,7 +199,7 @@ ipcMain.handle('split', async (_e, opts) => {
       const len = Math.max(0.1, r.end - r.start);
       const out = path.join(jobDir, `Splitora_Part_${String(i + 1).padStart(3, '0')}.mp4`);
       const args = ['-hide_banner', '-y', '-ss', String(r.start), '-i', input];
-      if (hasOverlay) args.push('-i', overlayPng);
+      for (const ov of overlayInputs()) args.push('-i', ov);
       args.push('-t', String(len));
       if (needsEncode) { args.push(...filterArgs(), ...codecArgs); }
       else { args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero'); }
@@ -172,7 +210,7 @@ ipcMain.handle('split', async (_e, opts) => {
     // ===== automatic equal splitting (segment muxer, single pass) =====
     const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
     const args = ['-hide_banner', '-y', '-i', input];
-    if (hasOverlay) args.push('-i', overlayPng);
+    for (const ov of overlayInputs()) args.push('-i', ov);
     if (needsEncode) {
       args.push(...filterArgs(), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
     } else {

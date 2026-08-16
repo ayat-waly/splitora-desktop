@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('splitora', {
   urlInfo: (url) => ipcRenderer.invoke('url-info', url),
   urlDownload: (url) => ipcRenderer.invoke('url-download', url),
   cancelDownload: () => ipcRenderer.invoke('cancel-download'),
+  licenseStatus: () => ipcRenderer.invoke('license-status'),
+  licenseActivate: (key) => ipcRenderer.invoke('license-activate', key),
   onUrlProgress: (cb) => {
     ipcRenderer.removeAllListeners('url-progress');
     ipcRenderer.on('url-progress', (_e, ratio) => cb(ratio));
