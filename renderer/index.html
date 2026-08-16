@@ -471,7 +471,7 @@ const $=id=>document.getElementById(id);
 const fmtTime=s=>{s=Math.round(s);const m=Math.floor(s/60),ss=s%60,h=Math.floor(m/60);return (h?h+':':'')+String(h?m%60:m).padStart(h?2:1,'0')+':'+String(ss).padStart(2,'0');};
 const fmtSize=b=>b>1e9?(b/1e9).toFixed(2)+' GB':b>1e6?(b/1e6).toFixed(1)+' MB':(b/1e3).toFixed(0)+' KB';
 
-let filePath=null,videoDur=0,videoFps=30,clipSec=60,quality='copy',reels=false,outDir='',resultDir='';
+let filePath=null,videoDur=0,videoFps=30,videoW=0,videoH=0,clipSec=60,quality='copy',reels=false,outDir='',resultDir='';
 
 /* file selection */
 const drop=$('drop');
@@ -487,7 +487,7 @@ drop.addEventListener('drop',async ev=>{
 async function setFile(p){
   try{
     const info=await window.splitora.probe(p);
-    filePath=p;videoDur=info.duration;videoFps=info.fps||30;
+    filePath=p;videoDur=info.duration;videoFps=info.fps||30;videoW=info.width||0;videoH=info.height||0;
     $('fiName').textContent=info.name;
     $('fiDur').textContent=fmtTime(info.duration);
     $('fiSize').textContent=fmtSize(info.size);
