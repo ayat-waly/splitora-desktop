@@ -85,6 +85,7 @@ const PAGE_HTML = `<!DOCTYPE html>
   .result.show{display:block}
   .result .key{font-family:Consolas,monospace;font-size:.78rem;word-break:break-all;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;direction:ltr;text-align:left}
   .copybtn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:.82rem;cursor:pointer}
+  .wabtn{background:#25D366;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:.82rem;cursor:pointer;margin-inline-start:8px}
   .err{display:none;margin-top:14px;background:#fff0ee;border:1.5px solid #f3a89c;color:#7a2418;border-radius:10px;padding:12px 14px;font-size:.85rem}
   .err.show{display:block}
   table{width:100%;border-collapse:collapse;font-size:.85rem}
@@ -123,6 +124,7 @@ const PAGE_HTML = `<!DOCTYPE html>
       <div id="resultInfo"></div>
       <div class="key" id="keyText"></div>
       <button class="copybtn" id="copyBtn">📋 نسخ المفتاح</button>
+      <button class="wabtn" id="waBtn">📱 إرسال عبر واتساب</button>
     </div>
   </div>
 
@@ -144,6 +146,9 @@ const resultBox=document.getElementById('resultBox');
 const resultInfo=document.getElementById('resultInfo');
 const keyText=document.getElementById('keyText');
 const copyBtn=document.getElementById('copyBtn');
+const waBtn=document.getElementById('waBtn');
+const WA_NUMBER='201021830223'; // +20 10 21830223
+let lastPayload=null,lastKey='';
 const tableWrap=document.getElementById('tableWrap');
 const searchBox=document.getElementById('searchBox');
 const planLabels={monthly:'شهري',yearly:'سنوي',lifetime:'مدى الحياة'};
@@ -187,6 +192,7 @@ genBtn.onclick=async()=>{
     resultInfo.innerHTML = '<b>النوع:</b> '+planLabels[data.payload.plan]+(data.payload.cust?' — <b>العميل:</b> '+data.payload.cust:'')
       +(data.payload.plan!=='lifetime' ? ' — <b>ينتهي في:</b> '+new Date(data.payload.exp).toLocaleDateString('ar-EG') : '');
     keyText.textContent=data.key;
+    lastPayload=data.payload; lastKey=data.key;
     resultBox.classList.add('show');
     custName.value='';
     loadTable();
@@ -194,6 +200,20 @@ genBtn.onclick=async()=>{
   finally{ genBtn.disabled=false; genBtn.textContent='✨ توليد المفتاح'; }
 };
 copyBtn.onclick=()=>{ navigator.clipboard.writeText(keyText.textContent); copyBtn.textContent='✅ اتنسخ!'; setTimeout(()=>copyBtn.textContent='📋 نسخ المفتاح',1500); };
+waBtn.onclick=()=>{
+  if(!lastKey)return;
+  const planName=planLabels[lastPayload.plan]||lastPayload.plan;
+  const expLine = lastPayload.plan!=='lifetime'
+    ? ('ينتهي في: '+new Date(lastPayload.exp).toLocaleDateString('en-GB')+'\\n')
+    : '';
+  const greeting = lastPayload.cust ? ('مرحباً '+lastPayload.cust+'! 🎬') : 'مرحباً بيك! 🎬';
+  const msg = greeting+'\\n'
+    + 'تفعيل اشتراكك في Splitora ('+planName+') جاهز.\\n\\n'
+    + expLine
+    + 'مفتاح التفعيل:\\n'+lastKey+'\\n\\n'
+    + 'الصقيه في شاشة "تفعيل الاشتراك" داخل البرنامج.';
+  window.open('https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(msg), '_blank');
+};
 
 loadTable();
 </script>
