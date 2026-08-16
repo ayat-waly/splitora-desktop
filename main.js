@@ -115,7 +115,7 @@ ipcMain.handle('split', async (_e, opts) => {
 
   const licStatus = license.getStatus();
   if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
-  const watermarkPath = licStatus.watermark ? path.join(__dirname, 'build', 'icon.png') : null;
+  const watermarkPath = licStatus.watermark ? unpacked(path.join(__dirname, 'build', 'icon.png')) : null;
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
 
   // dedicated subfolder per job: <video name>_parts, deduped

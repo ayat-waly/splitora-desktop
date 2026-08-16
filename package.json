@@ -1,7 +1,7 @@
 {
   "name": "splitora-desktop",
   "productName": "Splitora",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Splitora — قسّم فيديوهاتك باحترافية | Split your videos professionally",
   "main": "main.js",
   "author": "Splitora",
@@ -36,7 +36,8 @@
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
-      "node_modules/ffprobe-static/**"
+      "node_modules/ffprobe-static/**",
+      "build/icon.png"
     ],
     "win": {
       "target": [
