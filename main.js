@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const license = require('./license');
 
 /* ffmpeg/ffprobe binaries bundled via ffmpeg-static & ffprobe-static.
@@ -98,6 +99,32 @@ ipcMain.handle('probe', async (_e, file) => {
     fps = +rate;
   }
   return { duration, size, width: v.width || 0, height: v.height || 0, name: path.basename(file), fps };
+});
+
+ipcMain.handle('gen-thumbstrip', async (_e, opts) => {
+  const { input, duration, count } = opts;
+  if (!fs.existsSync(input) || !duration || duration <= 0) return [];
+  const n = Math.max(4, Math.min(24, count || 14));
+  const tmpDir = path.join(os.tmpdir(), 'splitora-thumbstrip-' + Date.now());
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const results = [];
+  try {
+    for (let i = 0; i < n; i++) {
+      const t = Math.min(duration - 0.05, Math.max(0, (duration * (i + 0.5)) / n));
+      const out = path.join(tmpDir, `f${i}.jpg`);
+      try {
+        await run(FFMPEG, ['-hide_banner', '-y', '-ss', String(t), '-i', input,
+          '-frames:v', '1', '-vf', 'scale=160:-1', '-q:v', '4', out]);
+        if (fs.existsSync(out)) {
+          const b64 = fs.readFileSync(out).toString('base64');
+          results.push('data:image/jpeg;base64,' + b64);
+        }
+      } catch (_e2) { /* skip failed frame, keep the rest */ }
+    }
+  } finally {
+    fs.rm(tmpDir, { recursive: true, force: true }, () => {});
+  }
+  return results;
 });
 
 ipcMain.handle('pick-outdir', async () => {

@@ -175,24 +175,24 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
 .lock-box .lock-close{background:none;border:none;color:var(--muted);font-size:.78rem;margin-top:12px;cursor:pointer;text-decoration:underline}
 /* trimmer preview */
 .trimmer{margin-bottom:16px;background:#f8faff;border:1.5px solid var(--border);border-radius:14px;padding:16px}
-.trimmer video{width:100%;max-height:260px;border-radius:10px;background:#000;display:block;margin-bottom:12px}
-.trim-track{position:relative;height:10px;background:#e7ecf6;border-radius:999px;cursor:pointer;user-select:none;margin:22px 12px 0}
-.trim-range{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:999px;box-shadow:inset 0 1px 2px rgba(255,255,255,.35)}
-.trim-handle{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;cursor:ew-resize;transform:translate(-50%,-50%);z-index:3;background:#fff;box-shadow:0 2px 8px rgba(20,36,63,.3);transition:transform .12s,box-shadow .12s}
-.trim-handle::after{content:'';position:absolute;inset:5px;border-radius:50%}
-.trim-handle.start{border:3px solid var(--blue)}
-.trim-handle.start::after{background:var(--blue)}
-.trim-handle.end{border:3px solid var(--purple)}
-.trim-handle.end::after{background:var(--purple)}
-.trim-handle:hover,.trim-handle:active{transform:translate(-50%,-50%) scale(1.15);box-shadow:0 4px 14px rgba(20,36,63,.4)}
-.trim-playhead{position:absolute;top:-10px;bottom:-10px;width:2px;background:#ff4d4d;pointer-events:none;z-index:1;border-radius:2px}
-.trim-info{display:flex;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:10px}
-.trim-times{font-size:.85rem;color:var(--navy);font-weight:600;direction:ltr;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.trim-input{width:66px;text-align:center;border:1.5px solid var(--border);border-radius:8px;padding:5px 4px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--blue);direction:ltr;outline:none}
+.trimmer video{width:100%;max-height:280px;border-radius:10px;background:#000;display:block;margin-bottom:14px}
+.filmstrip{position:relative;height:52px;border-radius:9px;overflow:hidden;background:#0d1626;margin-bottom:14px;cursor:pointer;user-select:none}
+.filmstrip-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8fa0c2;font-size:.74rem}
+.filmstrip-track{position:absolute;inset:0;display:flex}
+.filmstrip-track img{height:100%;flex:1;object-fit:cover;display:block;pointer-events:none}
+.filmstrip-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ff4d4d;pointer-events:none;box-shadow:0 0 4px rgba(255,77,77,.6);display:none}
+.mark-row{display:flex;gap:10px;margin-bottom:14px}
+.mark-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:12px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--navy);cursor:pointer;transition:.15s}
+.mark-btn .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mark-btn.start .dot{background:var(--blue)}
+.mark-btn.end .dot{background:var(--purple)}
+.mark-btn.start:hover{border-color:var(--blue);background:#eef4ff}
+.mark-btn.end:hover{border-color:var(--purple);background:#f5eeff}
+.trim-summary{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:.85rem;color:var(--navy);font-weight:600;direction:ltr}
+.trim-summary .add-range{margin-inline-start:10px}
+.trim-input{width:74px;text-align:center;border:1.5px solid var(--border);border-radius:8px;padding:6px 4px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--blue);direction:ltr;outline:none;background:#fff}
 .trim-input:focus{border-color:var(--blue)}
-.nudge{background:#eef2fb;border:1px solid var(--border);color:var(--navy);border-radius:7px;width:26px;height:26px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1}
-.nudge:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
-.trim-times b{color:var(--blue)}
+.trim-hint{font-size:.72rem;color:var(--muted);text-align:center;margin-top:10px;line-height:1.6}
 .trim-times .dur{color:var(--muted);font-weight:500;margin-inline-start:6px}
 </style>
 </head>
@@ -292,26 +292,28 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
     <div id="panelRanges" style="display:none">
       <div class="trimmer" id="trimmer">
         <video id="prevVideo" controls playsinline></video>
-        <div class="trim-track" id="trimTrack">
-          <div class="trim-range" id="trimRangeBar"></div>
-          <div class="trim-playhead" id="trimPlayhead"></div>
-          <div class="trim-handle start" id="trimStartHandle"></div>
-          <div class="trim-handle end" id="trimEndHandle"></div>
+        <div class="filmstrip" id="filmstrip">
+          <div class="filmstrip-loading" id="filmstripLoading" data-i18n="filmstripLoading">جاري تجهيز المعاينة…</div>
+          <div class="filmstrip-track" id="filmstripTrack"></div>
+          <div class="filmstrip-playhead" id="filmstripPlayhead"></div>
         </div>
-        <div class="trim-info">
-          <div class="trim-times">
-            <span data-i18n="trimFrom">من</span>
-            <button class="nudge" data-target="start" data-delta="-1">−1</button>
-            <input type="text" class="trim-input" id="trimStartLbl" value="00:00.0">
-            <button class="nudge" data-target="start" data-delta="1">+1</button>
-            <span class="dur">→</span>
-            <span data-i18n="trimTo">إلى</span>
-            <button class="nudge" data-target="end" data-delta="-1">−1</button>
-            <input type="text" class="trim-input" id="trimEndLbl" value="00:00.0">
-            <button class="nudge" data-target="end" data-delta="1">+1</button>
-          </div>
+        <div class="mark-row">
+          <button class="mark-btn start" id="markStartBtn">
+            <span class="dot"></span>
+            <span data-i18n="markStart">حددي البداية هنا</span>
+          </button>
+          <button class="mark-btn end" id="markEndBtn">
+            <span class="dot"></span>
+            <span data-i18n="markEnd">حددي النهاية هنا</span>
+          </button>
+        </div>
+        <div class="trim-summary">
+          <span data-i18n="trimFrom">من</span> <input type="text" class="trim-input" id="trimStartLbl" value="—">
+          <span class="dur">→</span>
+          <span data-i18n="trimTo">إلى</span> <input type="text" class="trim-input" id="trimEndLbl" value="—">
           <button class="add-range" id="trimAddBtn" data-i18n="trimAdd">➕ إضافة كمقطع</button>
         </div>
+        <div class="trim-hint" data-i18n="trimHint">شغّلي الفيديو ووقّفي عند اللحظة اللي عايزاها، وادوسي "حددي هنا". تقدري كمان تكتبي الوقت يدوياً في الخانات لو حابة.</div>
       </div>
       <div class="range-rows" id="rangeRows"></div>
       <button class="add-range" id="addRange" data-i18n="addRange">＋ إضافة مقطع جديد</button>
@@ -423,6 +425,9 @@ const I18N={
   addRange:'＋ إضافة مقطع جديد',
   rangeHint:'اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.',
   trimFrom:'من',trimTo:'إلى',trimAdd:'➕ إضافة كمقطع',
+  markStart:'حددي البداية هنا',markEnd:'حددي النهاية هنا',
+  filmstripLoading:'جاري تجهيز المعاينة…',
+  trimHint:'شغّلي الفيديو ووقّفي عند اللحظة اللي عايزاها، وادوسي "حددي هنا". تقدري كمان تكتبي الوقت يدوياً في الخانات لو حابة.',
   fromPh:'من (مثال 1:02)',toPh:'إلى (مثال 1:15)',
   sX:'إضافات اختيارية',xText:'📝 نص فوق الفيديو',xTextPh:'اكتبي النص هنا (اختياري)…',
   st1:'أبيض بظل',st2:'أصفر بحدود',st3:'شريط داكن',st4:'كبسولة ملونة',
@@ -472,6 +477,9 @@ const I18N={
   addRange:'＋ Add another clip',
   rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), hours:minutes:seconds (00:01:25), or with a frame number (00:01:25:13) — each row becomes one clip, in order.',
   trimFrom:'From',trimTo:'To',trimAdd:'➕ Add as clip',
+  markStart:'Mark start here',markEnd:'Mark end here',
+  filmstripLoading:'Preparing preview…',
+  trimHint:'Play the video and pause at the moment you want, then click "Mark here". You can also type the time directly in the boxes.',
   fromPh:'From (e.g. 1:02)',toPh:'To (e.g. 1:15)',
   sX:'Optional extras',xText:'📝 Text over video',xTextPh:'Type your text here (optional)…',
   st1:'White + shadow',st2:'Yellow outline',st3:'Dark bar',st4:'Color pill',
@@ -682,7 +690,7 @@ function readRanges(){
 $('addRange').onclick=()=>addRangeRow();
 addRangeRow(); // start with one row
 
-/* ===== trimmer preview: video + drag handles ===== */
+/* ===== trimmer preview: video + mark start/end buttons ===== */
 function toFileUrl(p){
   let s=String(p).replace(/\\/g,'/');
   if(!s.startsWith('/'))s='/'+s; // windows drive letters: C:/... -> /C:/...
@@ -693,76 +701,72 @@ const fmtTrim=s=>{
   const m=Math.floor(s/60),ss=(s%60);
   return String(m).padStart(2,'0')+':'+ss.toFixed(1).padStart(4,'0');
 };
-const prevVideo=$('prevVideo'),trimTrack=$('trimTrack'),trimRangeBar=$('trimRangeBar'),
-      trimPlayhead=$('trimPlayhead'),trimStartHandle=$('trimStartHandle'),trimEndHandle=$('trimEndHandle'),
+const prevVideo=$('prevVideo'),markStartBtn=$('markStartBtn'),markEndBtn=$('markEndBtn'),
       trimStartLbl=$('trimStartLbl'),trimEndLbl=$('trimEndLbl'),trimAddBtn=$('trimAddBtn');
-let trimStart=0,trimEnd=0,trimDur=0,trimDragging=null;
+let trimStart=null,trimEnd=null,trimDur=0;
 
 function initTrimmer(path,duration){
   try{ prevVideo.src=toFileUrl(path); }catch(_e){}
   trimDur=duration||0;
-  trimStart=0;
-  trimEnd=trimDur;
+  trimStart=null;
+  trimEnd=null;
   renderTrim();
+  loadFilmstrip(path,duration);
 }
-function pct(sec){ return trimDur>0 ? Math.min(100,Math.max(0,(sec/trimDur)*100)) : 0; }
-function renderTrim(){
-  const a=pct(trimStart),b=pct(trimEnd);
-  trimRangeBar.style.left=a+'%'; trimRangeBar.style.width=Math.max(0,b-a)+'%';
-  trimStartHandle.style.left=a+'%'; trimEndHandle.style.left=b+'%';
-  trimStartLbl.value=fmtTrim(trimStart);
-  trimEndLbl.value=fmtTrim(trimEnd);
+let filmstripLoadId=0;
+async function loadFilmstrip(path,duration){
+  const myId=++filmstripLoadId;
+  const track=$('filmstripTrack'),loading=$('filmstripLoading'),playhead=$('filmstripPlayhead');
+  track.innerHTML='';
+  playhead.style.display='none';
+  loading.style.display='flex';
+  try{
+    const frames=await window.splitora.genThumbstrip(path,duration,14);
+    if(myId!==filmstripLoadId)return; // المستخدم رفعت فيديو تاني قبل ما نخلص
+    if(frames&&frames.length){
+      frames.forEach(src=>{
+        const img=document.createElement('img');
+        img.src=src;
+        track.appendChild(img);
+      });
+      playhead.style.display='block';
+    }
+  }catch(_e){ /* تجاهل الفشل — الفيديو والتحكم اليدوي هيفضلوا شغالين عادي */ }
+  finally{ if(myId===filmstripLoadId) loading.style.display='none'; }
 }
-function secFromEvent(ev){
-  const r=trimTrack.getBoundingClientRect();
-  const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
-  const p=Math.min(1,Math.max(0,x/r.width));
-  return p*trimDur;
-}
-function startDrag(which){
-  return (ev)=>{
-    ev.preventDefault();
-    trimDragging=which;
-    const move=(mv)=>{
-      const s=secFromEvent(mv);
-      if(trimDragging==='start'){ trimStart=Math.min(s,trimEnd-0.1); if(trimStart<0)trimStart=0; }
-      else { trimEnd=Math.max(s,trimStart+0.1); if(trimEnd>trimDur)trimEnd=trimDur; }
-      renderTrim();
-      if(prevVideo.readyState>0) prevVideo.currentTime=trimDragging==='start'?trimStart:trimEnd;
-    };
-    const up=()=>{
-      trimDragging=null;
-      window.removeEventListener('mousemove',move);
-      window.removeEventListener('mouseup',up);
-      window.removeEventListener('touchmove',move);
-      window.removeEventListener('touchend',up);
-    };
-    window.addEventListener('mousemove',move);
-    window.addEventListener('mouseup',up);
-    window.addEventListener('touchmove',move,{passive:false});
-    window.addEventListener('touchend',up);
-  };
-}
-trimStartHandle.addEventListener('mousedown',startDrag('start'));
-trimStartHandle.addEventListener('touchstart',startDrag('start'),{passive:false});
-trimEndHandle.addEventListener('mousedown',startDrag('end'));
-trimEndHandle.addEventListener('touchstart',startDrag('end'),{passive:false});
-trimTrack.addEventListener('click',(ev)=>{
-  if(ev.target===trimStartHandle||ev.target===trimEndHandle)return;
-  const s=secFromEvent(ev);
-  // حركي أقرب علامة (بداية أو نهاية) لمكان الضغطة
-  if(Math.abs(s-trimStart)<=Math.abs(s-trimEnd)) trimStart=Math.min(s,trimEnd-0.1);
-  else trimEnd=Math.max(s,trimStart+0.1);
-  renderTrim();
-  if(prevVideo.readyState>0){ prevVideo.currentTime=s; }
+$('filmstrip').addEventListener('click',(ev)=>{
+  if(!trimDur||prevVideo.readyState<1)return;
+  const r=$('filmstrip').getBoundingClientRect();
+  const p=Math.min(1,Math.max(0,(ev.clientX-r.left)/r.width));
+  prevVideo.currentTime=p*trimDur;
 });
+function renderTrim(){
+  trimStartLbl.value=trimStart==null?'—':fmtTrim(trimStart);
+  trimEndLbl.value=trimEnd==null?'—':fmtTrim(trimEnd);
+}
+markStartBtn.onclick=()=>{
+  if(prevVideo.readyState<1)return;
+  trimStart=prevVideo.currentTime;
+  if(trimEnd!=null && trimEnd<=trimStart)trimEnd=null;
+  renderTrim();
+};
+markEndBtn.onclick=()=>{
+  if(prevVideo.readyState<1)return;
+  const t=prevVideo.currentTime;
+  if(trimStart!=null && t<=trimStart)return; // نهاية لازم تكون بعد البداية
+  trimEnd=t;
+  renderTrim();
+};
 prevVideo.addEventListener('timeupdate',()=>{
-  if(trimDur>0) trimPlayhead.style.left=pct(prevVideo.currentTime)+'%';
   drawTextPreview();
+  if(trimDur>0){
+    const ph=$('filmstripPlayhead');
+    ph.style.left=(Math.min(1,Math.max(0,prevVideo.currentTime/trimDur))*100)+'%';
+  }
 });
 prevVideo.addEventListener('loadeddata',()=>drawTextPreview());
 trimAddBtn.onclick=()=>{
-  if(trimDur<=0||trimEnd<=trimStart)return;
+  if(trimStart==null||trimEnd==null||trimEnd<=trimStart)return;
   addRangeRow(trimStart.toFixed(2),trimEnd.toFixed(2));
   updateEstimate();
 };
@@ -770,24 +774,14 @@ function commitTrimInput(which){
   const el=which==='start'?trimStartLbl:trimEndLbl;
   const val=parseTime(el.value);
   if(isNaN(val)){ renderTrim(); return; }
-  if(which==='start'){ trimStart=Math.min(Math.max(0,val),trimEnd-0.1); }
-  else{ trimEnd=Math.max(Math.min(trimDur,val),trimStart+0.1); }
+  if(which==='start'){ trimStart=Math.max(0,val); if(trimEnd!=null&&trimEnd<=trimStart)trimEnd=null; }
+  else{ trimEnd=Math.min(trimDur||val,val); if(trimStart!=null&&trimEnd<=trimStart)trimEnd=null; }
   renderTrim();
-  if(prevVideo.readyState>0) prevVideo.currentTime=which==='start'?trimStart:trimEnd;
 }
 trimStartLbl.addEventListener('change',()=>commitTrimInput('start'));
 trimStartLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimStartLbl.blur();}});
 trimEndLbl.addEventListener('change',()=>commitTrimInput('end'));
 trimEndLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimEndLbl.blur();}});
-document.querySelectorAll('.nudge').forEach(btn=>{
-  btn.onclick=()=>{
-    const target=btn.dataset.target,delta=+btn.dataset.delta;
-    if(target==='start'){ trimStart=Math.min(Math.max(0,trimStart+delta),trimEnd-0.1); }
-    else{ trimEnd=Math.max(Math.min(trimDur,trimEnd+delta),trimStart+0.1); }
-    renderTrim();
-    if(prevVideo.readyState>0) prevVideo.currentTime=target==='start'?trimStart:trimEnd;
-  };
-});
 
 /* text overlay */
 let ovStyle='shadow',ovPos='bottom';
@@ -924,7 +918,11 @@ function resetAll(){
   // المقاطع المخصصة والسلايدر
   $('rangeRows').innerHTML='';
   addRangeRow();
-  trimStart=0;trimEnd=0;trimDur=0;
+  trimStart=null;trimEnd=null;trimDur=0;
+  filmstripLoadId++; // إلغاء أي تحميل شغال
+  $('filmstripTrack').innerHTML='';
+  $('filmstripPlayhead').style.display='none';
+  $('filmstripLoading').style.display='none';
   prevVideo.removeAttribute('src');prevVideo.load();
   renderTrim();
 
