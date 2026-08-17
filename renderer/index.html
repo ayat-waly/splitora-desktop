@@ -124,7 +124,10 @@ canvas#textPreview{width:100%;max-width:340px;max-height:230px;object-fit:contai
 .outdir-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.78rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .outdir-row button{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
 .outdir-row button:hover{border-color:var(--blue);color:var(--blue)}
-.go-btn{width:100%;margin-top:18px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:13px;padding:15px;font-family:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 8px 22px rgba(47,124,246,.3)}
+.go-row{display:flex;align-items:center;gap:10px;margin-top:18px}
+.go-btn{flex:1;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:13px;padding:15px;font-family:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 8px 22px rgba(47,124,246,.3)}
+.reset-btn{background:#fff;border:1.5px solid var(--border);border-radius:13px;padding:15px 18px;font-family:inherit;font-size:.85rem;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap;transition:.15s}
+.reset-btn:hover{border-color:#e2645a;color:#e2645a}
 .go-btn:hover:not(:disabled){transform:translateY(-2px)}
 .go-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
 .progress-wrap{display:none}
@@ -364,7 +367,10 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
       <div class="path" id="outPath">—</div>
       <button id="outBtn" data-i18n="outBtn">📁 تغيير مجلد الحفظ</button>
     </div>
-    <button class="go-btn" id="goBtn" disabled data-i18n="go">✂️ ابدأ التقسيم</button>
+    <div class="go-row">
+      <button class="go-btn" id="goBtn" disabled data-i18n="go">✂️ ابدأ التقسيم</button>
+      <button class="reset-btn" id="resetBtn" data-i18n="resetBtn">🔄 مسح الكل</button>
+    </div>
     <div class="err" id="errBox"></div>
   </div>
 
@@ -399,7 +405,7 @@ const I18N={
   s3:'الجودة ومكان الحفظ',qOrig:'الجودة الأصلية ⚡',qOrigS:'بدون إعادة ترميز — لحظي تقريباً',
   q1080S:'إعادة ترميز بقص دقيق للثانية',q720S:'إعادة ترميز — حجم أصغر',
   reels:'تحويل لحجم الريلز (9:16) 📱',reelsS:'مثالي لـ Reels و TikTok و Shorts',
-  outBtn:'📁 تغيير مجلد الحفظ',go:'✂️ ابدأ التقسيم',processing:'جاري التقسيم…',
+  outBtn:'📁 تغيير مجلد الحفظ',go:'✂️ ابدأ التقسيم',resetBtn:'🔄 مسح الكل',processing:'جاري التقسيم…',
   splitting:'✂️ جاري تقسيم الفيديو…',cancel:'إلغاء',
   openFolder:'📂 افتح المجلد',again:'🔄 تقسيم فيديو آخر',
   foot:'كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً',
@@ -448,7 +454,7 @@ const I18N={
   s3:'Quality & save location',qOrig:'Original quality ⚡',qOrigS:'No re-encoding — near instant',
   q1080S:'Re-encode, second-accurate cuts',q720S:'Re-encode — smaller files',
   reels:'Convert to Reels size (9:16) 📱',reelsS:'Perfect for Reels, TikTok & Shorts',
-  outBtn:'📁 Change save folder',go:'✂️ Start splitting',processing:'Splitting…',
+  outBtn:'📁 Change save folder',go:'✂️ Start splitting',resetBtn:'🔄 Reset all',processing:'Splitting…',
   splitting:'✂️ Splitting your video…',cancel:'Cancel',
   openFolder:'📂 Open folder',again:'🔄 Split another video',
   foot:'All processing happens on your device — your files never leave it',
@@ -867,6 +873,58 @@ window.splitora.onProgress(r=>{
   const pc=Math.round(r*100);
   $('pbarFill').style.width=pc+'%';$('pPct').textContent=pc+'%';
 });
+/* reset everything to defaults */
+function resetAll(){
+  // الفيديو والملف
+  filePath=null;videoDur=0;videoFps=30;videoW=0;videoH=0;
+  $('fileInfo').classList.remove('show');
+  $('drop').classList.remove('over');
+  ['stepDur','stepExtras','stepQ'].forEach(id=>{$(id).style.opacity=.4;$(id).style.pointerEvents='none';});
+  $('goBtn').disabled=true;
+
+  // وضع التقسيم
+  clipSec=60;
+  document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.preset[data-sec="60"]').classList.add('active');
+  $('customSec').value='';
+  setMode('auto');
+
+  // المقاطع المخصصة والسلايدر
+  $('rangeRows').innerHTML='';
+  addRangeRow();
+  trimStart=0;trimEnd=0;trimDur=0;
+  prevVideo.removeAttribute('src');prevVideo.load();
+  renderTrim();
+
+  // الإضافات: نص، fps، ثامنيل
+  $('ovText').value='';
+  ovStyle='shadow';ovPos='bottom';
+  document.querySelectorAll('#styleRow .style-opt').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('#posRow .pos-opt').forEach(x=>x.classList.remove('active'));
+  const defStyle=document.querySelector('[data-style="shadow"]'); if(defStyle)defStyle.classList.add('active');
+  const defPos=document.querySelector('[data-pos="bottom"]'); if(defPos)defPos.classList.add('active');
+  $('textPreview').style.display='none';
+
+  fpsVal=0;
+  document.querySelectorAll('#fpsRow .fps-opt').forEach(x=>x.classList.remove('active'));
+  document.querySelector('#fpsRow .fps-opt[data-fps="0"]').classList.add('active');
+
+  thumbPath=null;
+  $('thumbPrev').classList.remove('show');
+  $('thumbClear').classList.remove('show');
+
+  // الجودة وReels
+  quality='copy';
+  document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.opt[data-q="copy"]').classList.add('active');
+  reels=false;
+  $('reelsRow').classList.remove('active');
+
+  $('errBox').classList.remove('show');
+  updateEstimate();
+}
+$('resetBtn').onclick=resetAll;
+
 $('goBtn').onclick=async()=>{
   if(!filePath)return;
   let rangesArr=null;
