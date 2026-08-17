@@ -187,7 +187,11 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
 .trim-handle:hover,.trim-handle:active{transform:translate(-50%,-50%) scale(1.15);box-shadow:0 4px 14px rgba(20,36,63,.4)}
 .trim-playhead{position:absolute;top:-10px;bottom:-10px;width:2px;background:#ff4d4d;pointer-events:none;z-index:1;border-radius:2px}
 .trim-info{display:flex;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:10px}
-.trim-times{font-size:.85rem;color:var(--navy);font-weight:600;direction:ltr}
+.trim-times{font-size:.85rem;color:var(--navy);font-weight:600;direction:ltr;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.trim-input{width:66px;text-align:center;border:1.5px solid var(--border);border-radius:8px;padding:5px 4px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--blue);direction:ltr;outline:none}
+.trim-input:focus{border-color:var(--blue)}
+.nudge{background:#eef2fb;border:1px solid var(--border);color:var(--navy);border-radius:7px;width:26px;height:26px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;line-height:1}
+.nudge:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .trim-times b{color:var(--blue)}
 .trim-times .dur{color:var(--muted);font-weight:500;margin-inline-start:6px}
 </style>
@@ -296,9 +300,15 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
         </div>
         <div class="trim-info">
           <div class="trim-times">
-            <span data-i18n="trimFrom">من</span> <b id="trimStartLbl">00:00.0</b>
+            <span data-i18n="trimFrom">من</span>
+            <button class="nudge" data-target="start" data-delta="-1">−1</button>
+            <input type="text" class="trim-input" id="trimStartLbl" value="00:00.0">
+            <button class="nudge" data-target="start" data-delta="1">+1</button>
             <span class="dur">→</span>
-            <span data-i18n="trimTo">إلى</span> <b id="trimEndLbl">00:00.0</b>
+            <span data-i18n="trimTo">إلى</span>
+            <button class="nudge" data-target="end" data-delta="-1">−1</button>
+            <input type="text" class="trim-input" id="trimEndLbl" value="00:00.0">
+            <button class="nudge" data-target="end" data-delta="1">+1</button>
           </div>
           <button class="add-range" id="trimAddBtn" data-i18n="trimAdd">➕ إضافة كمقطع</button>
         </div>
@@ -700,8 +710,8 @@ function renderTrim(){
   const a=pct(trimStart),b=pct(trimEnd);
   trimRangeBar.style.left=a+'%'; trimRangeBar.style.width=Math.max(0,b-a)+'%';
   trimStartHandle.style.left=a+'%'; trimEndHandle.style.left=b+'%';
-  trimStartLbl.textContent=fmtTrim(trimStart);
-  trimEndLbl.textContent=fmtTrim(trimEnd);
+  trimStartLbl.value=fmtTrim(trimStart);
+  trimEndLbl.value=fmtTrim(trimEnd);
 }
 function secFromEvent(ev){
   const r=trimTrack.getBoundingClientRect();
@@ -756,6 +766,28 @@ trimAddBtn.onclick=()=>{
   addRangeRow(trimStart.toFixed(2),trimEnd.toFixed(2));
   updateEstimate();
 };
+function commitTrimInput(which){
+  const el=which==='start'?trimStartLbl:trimEndLbl;
+  const val=parseTime(el.value);
+  if(isNaN(val)){ renderTrim(); return; }
+  if(which==='start'){ trimStart=Math.min(Math.max(0,val),trimEnd-0.1); }
+  else{ trimEnd=Math.max(Math.min(trimDur,val),trimStart+0.1); }
+  renderTrim();
+  if(prevVideo.readyState>0) prevVideo.currentTime=which==='start'?trimStart:trimEnd;
+}
+trimStartLbl.addEventListener('change',()=>commitTrimInput('start'));
+trimStartLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimStartLbl.blur();}});
+trimEndLbl.addEventListener('change',()=>commitTrimInput('end'));
+trimEndLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimEndLbl.blur();}});
+document.querySelectorAll('.nudge').forEach(btn=>{
+  btn.onclick=()=>{
+    const target=btn.dataset.target,delta=+btn.dataset.delta;
+    if(target==='start'){ trimStart=Math.min(Math.max(0,trimStart+delta),trimEnd-0.1); }
+    else{ trimEnd=Math.max(Math.min(trimDur,trimEnd+delta),trimStart+0.1); }
+    renderTrim();
+    if(prevVideo.readyState>0) prevVideo.currentTime=target==='start'?trimStart:trimEnd;
+  };
+});
 
 /* text overlay */
 let ovStyle='shadow',ovPos='bottom';
