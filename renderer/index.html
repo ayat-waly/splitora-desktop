@@ -170,6 +170,19 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
 .lock-box .lock-err.show{display:block}
 .lock-box button.act{width:100%;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:11px;padding:13px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer}
 .lock-box .lock-close{background:none;border:none;color:var(--muted);font-size:.78rem;margin-top:12px;cursor:pointer;text-decoration:underline}
+/* trimmer preview */
+.trimmer{margin-bottom:16px;background:#f8faff;border:1.5px solid var(--border);border-radius:14px;padding:14px}
+.trimmer video{width:100%;max-height:260px;border-radius:10px;background:#000;display:block;margin-bottom:12px}
+.trim-track{position:relative;height:46px;background:#e7ecf6;border-radius:10px;cursor:pointer;user-select:none}
+.trim-range{position:absolute;top:0;bottom:0;background:linear-gradient(135deg,rgba(47,107,255,.28),rgba(138,79,255,.28));border-radius:8px}
+.trim-handle{position:absolute;top:-3px;bottom:-3px;width:16px;border-radius:7px;cursor:ew-resize;transform:translateX(-50%);box-shadow:0 2px 6px rgba(20,36,63,.25);z-index:2}
+.trim-handle.start{background:var(--blue)}
+.trim-handle.end{background:var(--purple)}
+.trim-playhead{position:absolute;top:-6px;bottom:-6px;width:2px;background:#ff4d4d;pointer-events:none;z-index:1}
+.trim-info{display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:10px}
+.trim-times{font-size:.85rem;color:var(--navy);font-weight:600;direction:ltr}
+.trim-times b{color:var(--blue)}
+.trim-times .dur{color:var(--muted);font-weight:500;margin-inline-start:6px}
 </style>
 </head>
 <body>
@@ -266,6 +279,23 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
     </div>
     </div>
     <div id="panelRanges" style="display:none">
+      <div class="trimmer" id="trimmer">
+        <video id="prevVideo" controls playsinline></video>
+        <div class="trim-track" id="trimTrack">
+          <div class="trim-range" id="trimRangeBar"></div>
+          <div class="trim-playhead" id="trimPlayhead"></div>
+          <div class="trim-handle start" id="trimStartHandle"></div>
+          <div class="trim-handle end" id="trimEndHandle"></div>
+        </div>
+        <div class="trim-info">
+          <div class="trim-times">
+            <span data-i18n="trimFrom">من</span> <b id="trimStartLbl">00:00.0</b>
+            <span class="dur">→</span>
+            <span data-i18n="trimTo">إلى</span> <b id="trimEndLbl">00:00.0</b>
+          </div>
+          <button class="add-range" id="trimAddBtn" data-i18n="trimAdd">➕ إضافة كمقطع</button>
+        </div>
+      </div>
       <div class="range-rows" id="rangeRows"></div>
       <button class="add-range" id="addRange" data-i18n="addRange">＋ إضافة مقطع جديد</button>
       <div class="range-hint" data-i18n="rangeHint">اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.</div>
@@ -372,6 +402,7 @@ const I18N={
   modeAuto:'⚡ تقسيم تلقائي متساوٍ',modeRanges:'🎯 مقاطع مخصصة (من → إلى)',
   addRange:'＋ إضافة مقطع جديد',
   rangeHint:'اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.',
+  trimFrom:'من',trimTo:'إلى',trimAdd:'➕ إضافة كمقطع',
   fromPh:'من (مثال 1:02)',toPh:'إلى (مثال 1:15)',
   sX:'إضافات اختيارية',xText:'📝 نص فوق الفيديو',xTextPh:'اكتبي النص هنا (اختياري)…',
   st1:'أبيض بظل',st2:'أصفر بحدود',st3:'شريط داكن',st4:'كبسولة ملونة',
@@ -420,6 +451,7 @@ const I18N={
   modeAuto:'⚡ Equal auto-split',modeRanges:'🎯 Custom clips (from → to)',
   addRange:'＋ Add another clip',
   rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), hours:minutes:seconds (00:01:25), or with a frame number (00:01:25:13) — each row becomes one clip, in order.',
+  trimFrom:'From',trimTo:'To',trimAdd:'➕ Add as clip',
   fromPh:'From (e.g. 1:02)',toPh:'To (e.g. 1:15)',
   sX:'Optional extras',xText:'📝 Text over video',xTextPh:'Type your text here (optional)…',
   st1:'White + shadow',st2:'Yellow outline',st3:'Dark bar',st4:'Color pill',
@@ -496,6 +528,7 @@ async function setFile(p){
     ['stepDur','stepExtras','stepQ'].forEach(id=>{$(id).style.opacity=1;$(id).style.pointerEvents='auto';});
     $('goBtn').disabled=false;
     updateEstimate();
+    initTrimmer(p, info.duration);
   }catch(e){showErr(String(e.message||e));}
 }
 
@@ -628,6 +661,89 @@ function readRanges(){
 }
 $('addRange').onclick=()=>addRangeRow();
 addRangeRow(); // start with one row
+
+/* ===== trimmer preview: video + drag handles ===== */
+function toFileUrl(p){
+  let s=String(p).replace(/\\/g,'/');
+  if(!s.startsWith('/'))s='/'+s; // windows drive letters: C:/... -> /C:/...
+  return 'file://'+encodeURI(s);
+}
+const fmtTrim=s=>{
+  s=Math.max(0,s);
+  const m=Math.floor(s/60),ss=(s%60);
+  return String(m).padStart(2,'0')+':'+ss.toFixed(1).padStart(4,'0');
+};
+const prevVideo=$('prevVideo'),trimTrack=$('trimTrack'),trimRangeBar=$('trimRangeBar'),
+      trimPlayhead=$('trimPlayhead'),trimStartHandle=$('trimStartHandle'),trimEndHandle=$('trimEndHandle'),
+      trimStartLbl=$('trimStartLbl'),trimEndLbl=$('trimEndLbl'),trimAddBtn=$('trimAddBtn');
+let trimStart=0,trimEnd=0,trimDur=0,trimDragging=null;
+
+function initTrimmer(path,duration){
+  try{ prevVideo.src=toFileUrl(path); }catch(_e){}
+  trimDur=duration||0;
+  trimStart=0;
+  trimEnd=trimDur;
+  renderTrim();
+}
+function pct(sec){ return trimDur>0 ? Math.min(100,Math.max(0,(sec/trimDur)*100)) : 0; }
+function renderTrim(){
+  const a=pct(trimStart),b=pct(trimEnd);
+  trimRangeBar.style.left=a+'%'; trimRangeBar.style.width=Math.max(0,b-a)+'%';
+  trimStartHandle.style.left=a+'%'; trimEndHandle.style.left=b+'%';
+  trimStartLbl.textContent=fmtTrim(trimStart);
+  trimEndLbl.textContent=fmtTrim(trimEnd);
+}
+function secFromEvent(ev){
+  const r=trimTrack.getBoundingClientRect();
+  const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+  const p=Math.min(1,Math.max(0,x/r.width));
+  return p*trimDur;
+}
+function startDrag(which){
+  return (ev)=>{
+    ev.preventDefault();
+    trimDragging=which;
+    const move=(mv)=>{
+      const s=secFromEvent(mv);
+      if(trimDragging==='start'){ trimStart=Math.min(s,trimEnd-0.1); if(trimStart<0)trimStart=0; }
+      else { trimEnd=Math.max(s,trimStart+0.1); if(trimEnd>trimDur)trimEnd=trimDur; }
+      renderTrim();
+      if(prevVideo.readyState>0) prevVideo.currentTime=trimDragging==='start'?trimStart:trimEnd;
+    };
+    const up=()=>{
+      trimDragging=null;
+      window.removeEventListener('mousemove',move);
+      window.removeEventListener('mouseup',up);
+      window.removeEventListener('touchmove',move);
+      window.removeEventListener('touchend',up);
+    };
+    window.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up);
+    window.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('touchend',up);
+  };
+}
+trimStartHandle.addEventListener('mousedown',startDrag('start'));
+trimStartHandle.addEventListener('touchstart',startDrag('start'),{passive:false});
+trimEndHandle.addEventListener('mousedown',startDrag('end'));
+trimEndHandle.addEventListener('touchstart',startDrag('end'),{passive:false});
+trimTrack.addEventListener('click',(ev)=>{
+  if(ev.target===trimStartHandle||ev.target===trimEndHandle)return;
+  const s=secFromEvent(ev);
+  // حركي أقرب علامة (بداية أو نهاية) لمكان الضغطة
+  if(Math.abs(s-trimStart)<=Math.abs(s-trimEnd)) trimStart=Math.min(s,trimEnd-0.1);
+  else trimEnd=Math.max(s,trimStart+0.1);
+  renderTrim();
+  if(prevVideo.readyState>0){ prevVideo.currentTime=s; }
+});
+prevVideo.addEventListener('timeupdate',()=>{
+  if(trimDur>0) trimPlayhead.style.left=pct(prevVideo.currentTime)+'%';
+});
+trimAddBtn.onclick=()=>{
+  if(trimDur<=0||trimEnd<=trimStart)return;
+  addRangeRow(trimStart.toFixed(2),trimEnd.toFixed(2));
+  updateEstimate();
+};
 
 /* text overlay */
 let ovStyle='shadow',ovPos='bottom';
