@@ -181,6 +181,7 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
 .filmstrip-track{position:absolute;inset:0;display:flex}
 .filmstrip-track img{height:100%;flex:1;object-fit:cover;display:block;pointer-events:none}
 .filmstrip-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ff4d4d;pointer-events:none;box-shadow:0 0 4px rgba(255,77,77,.6);display:none}
+.filmstrip-wave{position:absolute;inset:0;pointer-events:none}
 .mark-row{display:flex;gap:10px;margin-bottom:14px}
 .mark-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:12px;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--navy);cursor:pointer;transition:.15s}
 .mark-btn .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
@@ -295,6 +296,7 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
         <div class="filmstrip" id="filmstrip">
           <div class="filmstrip-loading" id="filmstripLoading" data-i18n="filmstripLoading">جاري تجهيز المعاينة…</div>
           <div class="filmstrip-track" id="filmstripTrack"></div>
+          <canvas class="filmstrip-wave" id="filmstripWave"></canvas>
           <div class="filmstrip-playhead" id="filmstripPlayhead"></div>
         </div>
         <div class="mark-row">
@@ -712,6 +714,7 @@ function initTrimmer(path,duration){
   trimEnd=null;
   renderTrim();
   loadFilmstrip(path,duration);
+  loadWaveform(path);
 }
 let filmstripLoadId=0;
 async function loadFilmstrip(path,duration){
@@ -720,6 +723,7 @@ async function loadFilmstrip(path,duration){
   track.innerHTML='';
   playhead.style.display='none';
   loading.style.display='flex';
+  clearWaveform();
   try{
     const frames=await window.splitora.genThumbstrip(path,duration,14);
     if(myId!==filmstripLoadId)return; // المستخدم رفعت فيديو تاني قبل ما نخلص
@@ -733,6 +737,37 @@ async function loadFilmstrip(path,duration){
     }
   }catch(_e){ /* تجاهل الفشل — الفيديو والتحكم اليدوي هيفضلوا شغالين عادي */ }
   finally{ if(myId===filmstripLoadId) loading.style.display='none'; }
+}
+async function loadWaveform(path){
+  const myId=filmstripLoadId; // نفس الجيل اللي حدده loadFilmstrip
+  try{
+    const peaks=await window.splitora.genWaveform(path,120);
+    if(myId!==filmstripLoadId)return;
+    drawWaveform(peaks);
+  }catch(_e){ /* لو فشل، الفيلم سترip يفضل شغال لوحده */ }
+}
+function clearWaveform(){
+  const c=$('filmstripWave');
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+}
+function drawWaveform(peaks){
+  if(!peaks||!peaks.length)return;
+  const box=$('filmstrip'),canvas=$('filmstripWave');
+  const w=box.clientWidth,h=box.clientHeight;
+  if(!w||!h)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  const barW=w/peaks.length,mid=h/2;
+  ctx.fillStyle='rgba(255,255,255,.6)';
+  peaks.forEach((p,i)=>{
+    const bh=Math.max(1.5,p*h*0.82);
+    ctx.fillRect(i*barW, mid-bh/2, Math.max(1,barW*0.7), bh);
+  });
 }
 $('filmstrip').addEventListener('click',(ev)=>{
   if(!trimDur||prevVideo.readyState<1)return;
@@ -920,6 +955,7 @@ function resetAll(){
   addRangeRow();
   trimStart=null;trimEnd=null;trimDur=0;
   filmstripLoadId++; // إلغاء أي تحميل شغال
+  clearWaveform();
   $('filmstripTrack').innerHTML='';
   $('filmstripPlayhead').style.display='none';
   $('filmstripLoading').style.display='none';

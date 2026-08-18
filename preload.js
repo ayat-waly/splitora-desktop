@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('splitora', {
   pickVideo: () => ipcRenderer.invoke('pick-video'),
   probe: (file) => ipcRenderer.invoke('probe', file),
   genThumbstrip: (input, duration, count) => ipcRenderer.invoke('gen-thumbstrip', { input, duration, count }),
+  genWaveform: (input, points) => ipcRenderer.invoke('gen-waveform', { input, points }),
   pickOutDir: () => ipcRenderer.invoke('pick-outdir'),
   defaultOutDir: () => ipcRenderer.invoke('default-outdir'),
   split: (opts) => ipcRenderer.invoke('split', opts),

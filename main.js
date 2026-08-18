@@ -63,6 +63,18 @@ function run(cmd, args) {
   });
 }
 
+function runBuffer(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, args, { windowsHide: true });
+    const chunks = [];
+    let err = '';
+    p.stdout.on('data', d => chunks.push(d));
+    p.stderr.on('data', d => { err += d; if (err.length > 4000) err = err.slice(-2000); });
+    p.on('error', reject);
+    p.on('close', code => code === 0 ? resolve(Buffer.concat(chunks)) : reject(new Error(err.slice(-500) || ('exit ' + code))));
+  });
+}
+
 function hms(sec) {
   sec = Math.max(0, sec);
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = (sec % 60).toFixed(2);
@@ -125,6 +137,35 @@ ipcMain.handle('gen-thumbstrip', async (_e, opts) => {
     fs.rm(tmpDir, { recursive: true, force: true }, () => {});
   }
   return results;
+});
+
+ipcMain.handle('gen-waveform', async (_e, opts) => {
+  const { input, points } = opts;
+  if (!fs.existsSync(input)) return [];
+  const n = Math.max(20, Math.min(600, points || 200));
+  try {
+    // صوت خام أحادي بمعدل عينات منخفض — كفاية لرسم شكل الموجة، وسريع جداً
+    const buf = await runBuffer(FFMPEG, ['-hide_banner', '-v', 'error', '-i', input,
+      '-vn', '-ac', '1', '-ar', '8000', '-f', 's16le', 'pipe:1']);
+    const sampleCount = Math.floor(buf.length / 2); // 16-bit = 2 bytes/sample
+    if (sampleCount < 1) return [];
+    const perBucket = Math.max(1, Math.floor(sampleCount / n));
+    const peaks = [];
+    for (let i = 0; i < n; i++) {
+      const start = i * perBucket;
+      const end = Math.min(sampleCount, start + perBucket);
+      if (start >= sampleCount) { peaks.push(0); continue; }
+      let maxAbs = 0;
+      for (let j = start; j < end; j += 4) { // نأخذ عينة كل 4 لسرعة الحساب
+        const v = Math.abs(buf.readInt16LE(j * 2));
+        if (v > maxAbs) maxAbs = v;
+      }
+      peaks.push(maxAbs / 32768);
+    }
+    return peaks;
+  } catch (_e2) {
+    return []; // الفيديو من غير صوت أو فشل الاستخراج — نتجاهل ونسيب الفيلم سترip يشتغل لوحده
+  }
 });
 
 ipcMain.handle('pick-outdir', async () => {
