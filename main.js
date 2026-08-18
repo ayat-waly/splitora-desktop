@@ -81,6 +81,65 @@ function hms(sec) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(5, '0')}`;
 }
 
+/* ---------- captions (SRT) ---------- */
+function srtTimeToSec(t) {
+  const m = t.match(/(\d+):(\d{2}):(\d{2})[,.](\d{3})/);
+  if (!m) return 0;
+  return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000;
+}
+function secToSrtTime(s) {
+  s = Math.max(0, s);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+  const ms = Math.round((s - Math.floor(s)) * 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+}
+function parseSrt(text) {
+  const blocks = text.replace(/\r/g, '').trim().split(/\n\n+/);
+  const cues = [];
+  for (const b of blocks) {
+    const lines = b.split('\n').filter(Boolean);
+    const timeLine = lines.find(l => l.includes('-->'));
+    if (!timeLine) continue;
+    const [a, c] = timeLine.split('-->').map(x => x.trim());
+    const start = srtTimeToSec(a), end = srtTimeToSec(c);
+    const textLines = lines.slice(lines.indexOf(timeLine) + 1);
+    if (textLines.length) cues.push({ start, end, text: textLines.join('\n') });
+  }
+  return cues;
+}
+function writeSrt(cues) {
+  return cues.map((c, i) => `${i + 1}\n${secToSrtTime(c.start)} --> ${secToSrtTime(c.end)}\n${c.text}\n`).join('\n');
+}
+/** يرجع مسار ملف SRT جديد بتوقيتات منزاحة لمقطع معين (لوضع المقاطع المخصصة) */
+function shiftSrtForClip(srtPath, clipStart, clipLen, tmpDir) {
+  const cues = parseSrt(fs.readFileSync(srtPath, 'utf8'));
+  const shifted = [];
+  for (const c of cues) {
+    const s = c.start - clipStart, e = c.end - clipStart;
+    if (e <= 0 || s >= clipLen) continue; // خارج المقطع تماماً
+    shifted.push({ start: Math.max(0, s), end: Math.min(clipLen, e), text: c.text });
+  }
+  const out = path.join(tmpDir, 'cap_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.srt');
+  fs.writeFileSync(out, writeSrt(shifted), 'utf8');
+  return out;
+}
+/** يجهز مسار ملف للاستخدام جوه فلتر ffmpeg (تهريب \ و : و ') */
+function ffFilterPath(p) {
+  let s = String(p).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "'\\''");
+  return `'${s}'`;
+}
+const CAPTION_STYLES = {
+  bold: 'FontName=Arial,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.5,Shadow=0,Bold=1,Alignment=2',
+  bar: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
+  pill: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H00F67C2F,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
+};
+function captionForceStyle(styleKey, outH) {
+  const base = CAPTION_STYLES[styleKey] || CAPTION_STYLES.bold;
+  const fontSize = Math.max(14, Math.round((outH || 1080) * 0.045));
+  const marginV = Math.round((outH || 1080) * 0.05);
+  return `${base},FontSize=${fontSize},MarginV=${marginV}`;
+}
+
 /* ---------- license ---------- */
 ipcMain.handle('license-status', () => license.getStatus());
 ipcMain.handle('license-activate', (_e, key) => license.activate(key));
@@ -168,6 +227,16 @@ ipcMain.handle('gen-waveform', async (_e, opts) => {
   }
 });
 
+ipcMain.handle('pick-srt', async () => {
+  const r = await dialog.showOpenDialog(win, {
+    title: 'اختاري ملف الترجمة',
+    filters: [{ name: 'SubRip Subtitle', extensions: ['srt'] }],
+    properties: ['openFile'],
+  });
+  if (r.canceled || !r.filePaths[0]) return null;
+  return r.filePaths[0];
+});
+
 ipcMain.handle('pick-outdir', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'اختر مجلد الحفظ', properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return null;
@@ -178,13 +247,34 @@ ipcMain.handle('default-outdir', () => app.getPath('videos') || app.getPath('dow
 
 ipcMain.handle('split', async (_e, opts) => {
   const { input, outDir, clipSec, quality, reels, duration,
-          mode, ranges, fps, overlayPng, thumbnail } = opts;
+          mode, ranges, fps, overlayPng, thumbnail,
+          captionsPath, captionsStyle, videoW, videoH } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
 
   const licStatus = license.getStatus();
   if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
   const watermarkPath = licStatus.watermark ? unpacked(path.join(__dirname, 'build', 'icon.png')) : null;
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
+  const hasCaptions = !!(captionsPath && fs.existsSync(captionsPath));
+
+  // نفس منطق حساب أبعاد المخرج المستخدم في الواجهة، لتحجيم خط الترجمة تناسبياً
+  function computeOutH() {
+    if (reels) return quality === '720' ? 1280 : 1920;
+    let h = videoH || 720;
+    const cap = quality === '1080' ? 1080 : quality === '720' ? 720 : 0;
+    if (cap && h > cap) h = cap;
+    return h;
+  }
+  const outH = computeOutH();
+  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle, outH) : '';
+  const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
+  if (capsTmpDir) fs.mkdirSync(capsTmpDir, { recursive: true });
+
+  // دالة بتاخد مسار SRT للمقطع الحالي (بدون إزاحة للأوتوماتيك، بإزاحة للمقاطع المخصصة)
+  function captionsFilterFor(srtPathForThisClip) {
+    if (!srtPathForThisClip) return null;
+    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}'`;
+  }
 
   // dedicated subfolder per job: <video name>_parts, deduped
   const base = path.basename(input).replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 60) || 'video';
@@ -195,7 +285,7 @@ ipcMain.handle('split', async (_e, opts) => {
 
   const hasOverlay = overlayPng && fs.existsSync(overlayPng);
   const useFps = fps && fps > 0;
-  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps || hasWatermark;
+  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps || hasWatermark || hasCaptions;
 
   // ترتيب مداخل الـ overlay: العلامة المائية (لو الفترة تجريبية) ثم النص المخصص للمستخدم
   function overlayInputs() {
@@ -205,8 +295,8 @@ ipcMain.handle('split', async (_e, opts) => {
     return list;
   }
 
-  // scale/pad/fps chain، وسلسلة overlay عامة بتدعم علامة مائية + نص فوق بعض
-  function filterArgs() {
+  // scale/pad/fps/captions chain، وسلسلة overlay عامة بتدعم علامة مائية + نص فوق بعض
+  function filterArgs(capFilterStr) {
     const vf = [];
     if (reels) {
       const w = quality === '720' ? 720 : 1080, h = quality === '720' ? 1280 : 1920;
@@ -214,6 +304,7 @@ ipcMain.handle('split', async (_e, opts) => {
     } else if (quality === '1080') vf.push('scale=-2:min(1080\\,ih)');
     else if (quality === '720') vf.push('scale=-2:min(720\\,ih)');
     if (useFps) vf.push('fps=' + fps);
+    if (capFilterStr) vf.push(capFilterStr);
 
     if (!hasWatermark && !hasOverlay) return vf.length ? ['-vf', vf.join(',')] : [];
 
@@ -278,7 +369,12 @@ ipcMain.handle('split', async (_e, opts) => {
       const args = ['-hide_banner', '-y', '-ss', String(r.start), '-i', input];
       for (const ov of overlayInputs()) args.push('-i', ov);
       args.push('-t', String(len));
-      if (needsEncode) { args.push(...filterArgs(), ...codecArgs); }
+      let capFilterStr = null;
+      if (hasCaptions) {
+        const shiftedSrt = shiftSrtForClip(captionsPath, r.start, len, capsTmpDir);
+        capFilterStr = captionsFilterFor(shiftedSrt);
+      }
+      if (needsEncode) { args.push(...filterArgs(capFilterStr), ...codecArgs); }
       else { args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero'); }
       args.push(...mapArgs(), out);
       await runFfmpeg(args, i / ranges.length, 1 / ranges.length, len);
@@ -288,8 +384,9 @@ ipcMain.handle('split', async (_e, opts) => {
     const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
     const args = ['-hide_banner', '-y', '-i', input];
     for (const ov of overlayInputs()) args.push('-i', ov);
+    const capFilterStr = hasCaptions ? captionsFilterFor(captionsPath) : null; // بدون إزاحة — التوقيت مطلق على طول الفيديو الأصلي
     if (needsEncode) {
-      args.push(...filterArgs(), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
+      args.push(...filterArgs(capFilterStr), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
     } else {
       args.push('-c', 'copy');
     }
@@ -298,6 +395,7 @@ ipcMain.handle('split', async (_e, opts) => {
     args.push('-reset_timestamps', '1', '-segment_start_number', '1', outPat);
     await runFfmpeg(args, 0, 1, duration || 0);
   }
+  if (capsTmpDir) fs.rm(capsTmpDir, { recursive: true, force: true }, () => {});
 
   // ===== collect parts =====
   let files = fs.readdirSync(jobDir)

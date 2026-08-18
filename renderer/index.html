@@ -120,6 +120,12 @@ canvas#textPreview{width:100%;max-width:340px;max-height:230px;object-fit:contai
 .thumb-clear{background:transparent;border:none;color:#c86a6a;font-size:.78rem;font-weight:600;cursor:pointer;display:none}
 .thumb-clear.show{display:inline-block}
 .thumb-note{font-size:.7rem;color:var(--muted);margin-top:9px;line-height:1.7}
+.caption-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.caption-file{flex:1;min-width:120px;font-size:.76rem;color:var(--muted);background:#f4f7fc;border-radius:9px;padding:9px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.caption-styles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.cap-style{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:8px;cursor:pointer;font-family:inherit;font-size:.72rem;font-weight:700;color:var(--navy);text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.cap-style.active{border-color:var(--blue);background:#eef4ff}
+.cap-style-preview{width:100%;height:38px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem}
 .outdir-row{display:flex;align-items:center;gap:10px;margin-top:14px}
 .outdir-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.78rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .outdir-row button{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
@@ -376,6 +382,28 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
         </div>
         <div class="thumb-note" data-i18n="thumbNote">الصورة بتتدمج داخل كل مقطع كصورة غلاف (تظهر في مستكشف الملفات ومشغلات الفيديو). منصات مثل يوتيوب وتيك توك تسمح برفع الثامنيل يدوياً عند النشر.</div>
       </div>
+      <div class="extra-block">
+        <label data-i18n="xCaptions">💬 الترجمة (كابشن)</label>
+        <div class="caption-row">
+          <div class="caption-file" id="captionFileName" data-i18n="captionNone">لم يتم اختيار ملف</div>
+          <button class="thumb-btn" id="captionBtn" data-i18n="captionBtn">📁 اختيار ملف SRT</button>
+          <button class="thumb-clear" id="captionClear" data-i18n="thumbClear" style="display:none">إزالة ✕</button>
+        </div>
+        <div class="caption-styles" id="captionStyles" style="display:none">
+          <button class="cap-style active" data-cap-style="bold">
+            <span class="cap-style-preview" style="background:#14243f"><span style="color:#fff;font-weight:800;text-shadow:-1px 0 #000,0 1px #000,1px 0 #000,0 -1px #000">Aa</span></span>
+            <span data-i18n="capBold">بولد كلاسيك</span>
+          </button>
+          <button class="cap-style" data-cap-style="bar">
+            <span class="cap-style-preview" style="background:#14243f"><span style="background:rgba(0,0,0,.7);color:#fff;font-weight:700;padding:2px 8px;border-radius:5px">Aa</span></span>
+            <span data-i18n="capBar">شريط داكن</span>
+          </button>
+          <button class="cap-style" data-cap-style="pill">
+            <span class="cap-style-preview" style="background:#14243f"><span style="background:#f67c2f;color:#fff;font-weight:700;padding:2px 8px;border-radius:999px">Aa</span></span>
+            <span data-i18n="capPill">كبسولة ملونة</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -450,6 +478,8 @@ const I18N={
   pTop:'أعلى',pMid:'وسط',pBot:'أسفل',
   xFps:'🎞️ الفريم ريت (معدل الإطارات)',fpsOrig:'الأصلي',
   xThumb:'🖼️ ثامنيل المقاطع (صورة الغلاف)',thumbBtn:'📁 اختيار صورة',thumbClear:'إزالة ✕',
+  xCaptions:'💬 الترجمة (كابشن)',captionBtn:'📁 اختيار ملف SRT',captionNone:'لم يتم اختيار ملف',
+  capBold:'بولد كلاسيك',capBar:'شريط داكن',capPill:'كبسولة ملونة',
   thumbNote:'الصورة بتتدمج داخل كل مقطع كصورة غلاف (تظهر في مستكشف الملفات ومشغلات الفيديو). منصات مثل يوتيوب وتيك توك تسمح برفع الثامنيل يدوياً عند النشر.',
   estRanges:n=>`سيتم إنشاء <b>${n} مقطع</b> حسب الأوقات المحددة.`,
   errRange:'راجعي الأوقات: لازم "من" أقل من "إلى" وداخل مدة الفيديو.',
@@ -502,6 +532,8 @@ const I18N={
   pTop:'Top',pMid:'Middle',pBot:'Bottom',
   xFps:'🎞️ Frame rate',fpsOrig:'Original',
   xThumb:'🖼️ Clips thumbnail (cover image)',thumbBtn:'📁 Choose image',thumbClear:'Remove ✕',
+  xCaptions:'💬 Captions (subtitles)',captionBtn:'📁 Choose SRT file',captionNone:'No file chosen',
+  capBold:'Bold classic',capBar:'Dark bar',capPill:'Colored pill',
   thumbNote:'The image is embedded in every clip as cover art (shows in file explorers and players). Platforms like YouTube and TikTok let you upload a thumbnail manually when posting.',
   estRanges:n=>`<b>${n} clips</b> will be created from your selected times.`,
   errRange:'Check your times: "from" must be less than "to" and within the video duration.',
@@ -953,6 +985,28 @@ $('thumbBtn').onclick=async()=>{
 };
 $('thumbClear').onclick=()=>{thumbPath=null;$('thumbPrev').classList.remove('show');$('thumbClear').classList.remove('show');};
 
+/* captions (SRT) */
+let captionsPath=null,captionsStyle='bold';
+$('captionBtn').onclick=async()=>{
+  const p=await window.splitora.pickSrt();
+  if(p){
+    captionsPath=p;
+    $('captionFileName').textContent=p.split(/[\\/]/).pop();
+    $('captionClear').style.display='inline';
+    $('captionStyles').style.display='grid';
+  }
+};
+$('captionClear').onclick=()=>{
+  captionsPath=null;
+  $('captionFileName').textContent=I18N[lang].captionNone;
+  $('captionClear').style.display='none';
+  $('captionStyles').style.display='none';
+};
+document.querySelectorAll('.cap-style').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.cap-style').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');captionsStyle=b.dataset.capStyle;
+});
+
 /* quality + reels + outdir */
 document.querySelectorAll('#qualityOpts .opt').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#qualityOpts .opt').forEach(x=>x.classList.remove('active'));
@@ -1017,6 +1071,13 @@ function resetAll(){
   $('thumbPrev').classList.remove('show');
   $('thumbClear').classList.remove('show');
 
+  captionsPath=null;captionsStyle='bold';
+  $('captionFileName').textContent=I18N[lang].captionNone;
+  $('captionClear').style.display='none';
+  $('captionStyles').style.display='none';
+  document.querySelectorAll('.cap-style').forEach(x=>x.classList.remove('active'));
+  const defCapStyle=document.querySelector('[data-cap-style="bold"]'); if(defCapStyle)defCapStyle.classList.add('active');
+
   // الجودة وReels
   quality='copy';
   document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active'));
@@ -1049,7 +1110,8 @@ $('goBtn').onclick=async()=>{
     if(oc)overlayPng=await window.splitora.saveTempPng(oc.toDataURL('image/png'));
     const res=await window.splitora.split({
       input:filePath,outDir,clipSec,quality,reels,duration:videoDur,
-      mode:splitMode,ranges:rangesArr,fps:fpsVal,overlayPng,thumbnail:thumbPath
+      mode:splitMode,ranges:rangesArr,fps:fpsVal,overlayPng,thumbnail:thumbPath,
+      captionsPath,captionsStyle,videoW,videoH
     });
     resultDir=res.dir;
     $('progressCard').classList.remove('show');
