@@ -176,7 +176,14 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
 /* trimmer preview */
 .trimmer{margin-bottom:16px;background:#f8faff;border:1.5px solid var(--border);border-radius:14px;padding:16px}
 .trimmer video{width:100%;max-height:280px;border-radius:10px;background:#000;display:block;margin-bottom:14px}
-.filmstrip{position:relative;height:52px;border-radius:9px;overflow:hidden;background:#0d1626;margin-bottom:14px;cursor:pointer;user-select:none}
+.zoom-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.zoom-btn{width:28px;height:28px;flex-shrink:0;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-weight:700;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.zoom-btn:hover{border-color:var(--blue);color:var(--blue)}
+#zoomSlider{flex:1;accent-color:var(--blue)}
+.filmstrip-scroll{border-radius:9px;overflow-x:auto;overflow-y:hidden;background:#0d1626;margin-bottom:14px}
+.filmstrip-scroll::-webkit-scrollbar{height:6px}
+.filmstrip-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:3px}
+.filmstrip{position:relative;height:52px;width:100%;min-width:100%;cursor:pointer;user-select:none}
 .filmstrip-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#8fa0c2;font-size:.74rem}
 .filmstrip-track{position:absolute;inset:0;display:flex}
 .filmstrip-track img{height:100%;flex:1;object-fit:cover;display:block;pointer-events:none}
@@ -293,11 +300,18 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
     <div id="panelRanges" style="display:none">
       <div class="trimmer" id="trimmer">
         <video id="prevVideo" controls playsinline></video>
-        <div class="filmstrip" id="filmstrip">
-          <div class="filmstrip-loading" id="filmstripLoading" data-i18n="filmstripLoading">جاري تجهيز المعاينة…</div>
-          <div class="filmstrip-track" id="filmstripTrack"></div>
-          <canvas class="filmstrip-wave" id="filmstripWave"></canvas>
-          <div class="filmstrip-playhead" id="filmstripPlayhead"></div>
+        <div class="zoom-row">
+          <button class="zoom-btn" id="zoomOutBtn">−</button>
+          <input type="range" id="zoomSlider" min="1" max="6" step="0.5" value="1">
+          <button class="zoom-btn" id="zoomInBtn">+</button>
+        </div>
+        <div class="filmstrip-scroll" id="filmstripScroll">
+          <div class="filmstrip" id="filmstrip">
+            <div class="filmstrip-loading" id="filmstripLoading" data-i18n="filmstripLoading">جاري تجهيز المعاينة…</div>
+            <div class="filmstrip-track" id="filmstripTrack"></div>
+            <canvas class="filmstrip-wave" id="filmstripWave"></canvas>
+            <div class="filmstrip-playhead" id="filmstripPlayhead"></div>
+          </div>
         </div>
         <div class="mark-row">
           <button class="mark-btn start" id="markStartBtn">
@@ -705,7 +719,7 @@ const fmtTrim=s=>{
 };
 const prevVideo=$('prevVideo'),markStartBtn=$('markStartBtn'),markEndBtn=$('markEndBtn'),
       trimStartLbl=$('trimStartLbl'),trimEndLbl=$('trimEndLbl'),trimAddBtn=$('trimAddBtn');
-let trimStart=null,trimEnd=null,trimDur=0;
+let trimStart=null,trimEnd=null,trimDur=0,zoomLevel=1,lastPeaks=[];
 
 function initTrimmer(path,duration){
   try{ prevVideo.src=toFileUrl(path); }catch(_e){}
@@ -713,6 +727,8 @@ function initTrimmer(path,duration){
   trimStart=null;
   trimEnd=null;
   renderTrim();
+  setZoom(1);
+  $('filmstripScroll').scrollLeft=0;
   loadFilmstrip(path,duration);
   loadWaveform(path);
 }
@@ -743,6 +759,7 @@ async function loadWaveform(path){
   try{
     const peaks=await window.splitora.genWaveform(path,120);
     if(myId!==filmstripLoadId)return;
+    lastPeaks=peaks;
     drawWaveform(peaks);
   }catch(_e){ /* لو فشل، الفيلم سترip يفضل شغال لوحده */ }
 }
@@ -795,11 +812,29 @@ markEndBtn.onclick=()=>{
 prevVideo.addEventListener('timeupdate',()=>{
   drawTextPreview();
   if(trimDur>0){
-    const ph=$('filmstripPlayhead');
-    ph.style.left=(Math.min(1,Math.max(0,prevVideo.currentTime/trimDur))*100)+'%';
+    const track=$('filmstrip'),ph=$('filmstripPlayhead');
+    const percent=Math.min(1,Math.max(0,prevVideo.currentTime/trimDur));
+    ph.style.left=(percent*100)+'%';
+    if(zoomLevel>1){
+      const scroller=$('filmstripScroll');
+      const playheadPx=percent*track.clientWidth;
+      const viewLeft=scroller.scrollLeft,viewRight=viewLeft+scroller.clientWidth;
+      if(playheadPx<viewLeft+24||playheadPx>viewRight-24){
+        scroller.scrollLeft=playheadPx-scroller.clientWidth/2;
+      }
+    }
   }
 });
 prevVideo.addEventListener('loadeddata',()=>drawTextPreview());
+function setZoom(z){
+  zoomLevel=Math.min(6,Math.max(1,z));
+  $('zoomSlider').value=zoomLevel;
+  $('filmstrip').style.width=(zoomLevel*100)+'%';
+  drawWaveform(lastPeaks); // إعادة الرسم على العرض الجديد
+}
+$('zoomInBtn').onclick=()=>setZoom(zoomLevel+0.5);
+$('zoomOutBtn').onclick=()=>setZoom(zoomLevel-0.5);
+$('zoomSlider').addEventListener('input',e=>setZoom(+e.target.value));
 trimAddBtn.onclick=()=>{
   if(trimStart==null||trimEnd==null||trimEnd<=trimStart)return;
   addRangeRow(trimStart.toFixed(2),trimEnd.toFixed(2));
@@ -955,6 +990,9 @@ function resetAll(){
   addRangeRow();
   trimStart=null;trimEnd=null;trimDur=0;
   filmstripLoadId++; // إلغاء أي تحميل شغال
+  lastPeaks=[];
+  setZoom(1);
+  $('filmstripScroll').scrollLeft=0;
   clearWaveform();
   $('filmstripTrack').innerHTML='';
   $('filmstripPlayhead').style.display='none';
