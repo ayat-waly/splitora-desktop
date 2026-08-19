@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const https = require('https');
 const license = require('./license');
 
 /* ffmpeg/ffprobe binaries bundled via ffmpeg-static & ffprobe-static.
@@ -561,6 +562,160 @@ ipcMain.handle('cancel-download', () => {
 
 ipcMain.handle('cancel-split', () => {
   if (currentJob) { try { currentJob.kill('SIGKILL'); } catch (_) {} currentJob = null; return true; }
+  return false;
+});
+
+/* ---------- Whisper: توليد ترجمة تلقائي محلياً بالكامل (offline, مجاني) ---------- */
+/* نفس منطق تجهيز yt-dlp بالظبط: باينري whisper.cpp بيتحمّل وقت البناء (bin/)،
+   وموديل الصوت (ggml) بيتحمّل مرة واحدة عند أول استخدام لملف المستخدم (userData) — عشان منكبرش حجم المثبّت. */
+const WHISPER_NAME = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
+function bundledWhisper() {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'bin', WHISPER_NAME), // packaged app
+    path.join(__dirname, 'bin', WHISPER_NAME)                    // dev mode
+  ];
+  return candidates.find(p => { try { return fs.existsSync(p); } catch (_) { return false; } }) || null;
+}
+function whisperBinPath() {
+  try {
+    const dir = path.join(app.getPath('userData'), 'bin');
+    const target = path.join(dir, WHISPER_NAME);
+    if (!fs.existsSync(target)) {
+      const src = bundledWhisper();
+      if (!src) return null;
+      fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(src, target);
+    }
+    if (process.platform !== 'win32') { try { fs.chmodSync(target, 0o755); } catch (_) {} }
+    return target;
+  } catch (_) { return bundledWhisper(); }
+}
+let WHISPER = null;
+app.whenReady().then(() => { WHISPER = whisperBinPath(); });
+
+// موديلات ggml الرسمية من مستودع whisper.cpp — متعددة اللغات (تدعم العربي والإنجليزي وغيرهم)
+const WHISPER_MODELS = {
+  tiny:  { file: 'ggml-tiny.bin',  sizeMB: 75,  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin' },
+  base:  { file: 'ggml-base.bin',  sizeMB: 142, url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin' },
+  small: { file: 'ggml-small.bin', sizeMB: 466, url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin' },
+};
+function whisperModelsDir() {
+  const dir = path.join(app.getPath('userData'), 'whisper-models');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+function whisperModelPath(size) {
+  const m = WHISPER_MODELS[size];
+  return m ? path.join(whisperModelsDir(), m.file) : null;
+}
+
+ipcMain.handle('whisper-status', () => {
+  const models = {};
+  for (const key of Object.keys(WHISPER_MODELS)) {
+    const p = whisperModelPath(key);
+    models[key] = { sizeMB: WHISPER_MODELS[key].sizeMB, downloaded: fs.existsSync(p) };
+  }
+  return { available: !!WHISPER, models };
+});
+
+let currentModelDl = null;
+function downloadWithRedirects(url, dest, onProgress) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    const req = https.get(url, res => {
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        file.close(); fs.unlink(dest, () => {});
+        resolve(downloadWithRedirects(res.headers.location, dest, onProgress));
+        return;
+      }
+      if (res.statusCode !== 200) {
+        file.close(); fs.unlink(dest, () => {});
+        return reject(new Error('HTTP ' + res.statusCode));
+      }
+      const total = parseInt(res.headers['content-length'] || '0', 10);
+      let loaded = 0;
+      res.on('data', chunk => { loaded += chunk.length; if (total && onProgress) onProgress(loaded / total); });
+      res.pipe(file);
+      file.on('finish', () => file.close(() => resolve()));
+      file.on('error', reject);
+    });
+    currentModelDl = req;
+    req.on('error', e => { file.close(); fs.unlink(dest, () => {}); reject(e); });
+  });
+}
+ipcMain.handle('whisper-download-model', async (_e, size) => {
+  const m = WHISPER_MODELS[size];
+  if (!m) throw new Error('E_BAD_MODEL');
+  const dest = whisperModelPath(size);
+  const tmp = dest + '.part';
+  try {
+    await downloadWithRedirects(m.url, tmp, ratio => {
+      if (win && !win.isDestroyed()) win.webContents.send('whisper-model-progress', ratio);
+    });
+    fs.renameSync(tmp, dest);
+    return true;
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    throw new Error(/cancel/i.test(String(e.message)) ? 'cancelled' : 'E_DOWNLOAD_FAILED');
+  } finally {
+    currentModelDl = null;
+  }
+});
+ipcMain.handle('cancel-whisper-model-download', () => {
+  if (currentModelDl) { try { currentModelDl.destroy(); } catch (_) {} currentModelDl = null; return true; }
+  return false;
+});
+
+let currentWhisperJob = null;
+ipcMain.handle('whisper-transcribe', async (_e, opts) => {
+  const { input, model, language } = opts; // language: 'auto' | 'ar' | 'en' | ...
+  if (!WHISPER) throw new Error('E_NO_WHISPER');
+  const modelPath = whisperModelPath(model || 'base');
+  if (!modelPath || !fs.existsSync(modelPath)) throw new Error('E_NO_MODEL');
+  if (!fs.existsSync(input)) throw new Error('input not found');
+
+  const tmpDir = path.join(os.tmpdir(), 'splitora-whisper-' + Date.now());
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const wavPath = path.join(tmpDir, 'audio.wav');
+  const outBase = path.join(tmpDir, 'out'); // whisper-cli بيضيف .srt لوحده
+
+  try {
+    // whisper.cpp محتاج WAV أحادي 16kHz بالظبط
+    await run(FFMPEG, ['-hide_banner', '-y', '-i', input, '-vn', '-ac', '1', '-ar', '16000', wavPath]);
+
+    await new Promise((resolve, reject) => {
+      const args = ['-m', modelPath, '-f', wavPath, '-osrt', '-of', outBase, '-l', language || 'auto', '-nt'];
+      const p = spawn(WHISPER, args, { windowsHide: true });
+      currentWhisperJob = p;
+      let err = '';
+      p.stderr.on('data', d => {
+        const s = d.toString();
+        err += s; if (err.length > 6000) err = err.slice(-3000);
+        if (win && !win.isDestroyed()) win.webContents.send('whisper-transcribe-log', s);
+      });
+      p.on('error', e => { currentWhisperJob = null; reject(e); });
+      p.on('close', code => {
+        currentWhisperJob = null;
+        if (code === null) return reject(new Error('cancelled'));
+        if (code !== 0) return reject(new Error(extractFfmpegError(err) || ('whisper exit ' + code)));
+        resolve();
+      });
+    });
+
+    const srtOut = outBase + '.srt';
+    if (!fs.existsSync(srtOut)) throw new Error('E_NO_OUTPUT');
+    // ننقلها لملف دائم بره الـ tmp عشان تفضل موجودة وقابلة للتعديل بعد ما نمسح المجلد المؤقت
+    const finalDir = path.join(app.getPath('userData'), 'whisper-out');
+    fs.mkdirSync(finalDir, { recursive: true });
+    const finalSrt = path.join(finalDir, 'auto_' + Date.now() + '.srt');
+    fs.copyFileSync(srtOut, finalSrt);
+    return finalSrt;
+  } finally {
+    fs.rm(tmpDir, { recursive: true, force: true }, () => {});
+  }
+});
+ipcMain.handle('cancel-whisper', () => {
+  if (currentWhisperJob) { try { currentWhisperJob.kill('SIGKILL'); } catch (_) {} currentWhisperJob = null; return true; }
   return false;
 });
 

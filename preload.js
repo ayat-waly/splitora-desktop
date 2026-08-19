@@ -28,5 +28,16 @@ contextBridge.exposeInMainWorld('splitora', {
     ipcRenderer.on('url-progress', (_e, ratio) => cb(ratio));
   },
   // drag & drop: resolve the real filesystem path of a dropped File
-  pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch (_) { return file.path || null; } }
+  pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch (_) { return file.path || null; } },
+
+  // Whisper: توليد ترجمة تلقائي محلياً
+  whisperStatus: () => ipcRenderer.invoke('whisper-status'),
+  whisperDownloadModel: (size) => ipcRenderer.invoke('whisper-download-model', size),
+  cancelWhisperModelDownload: () => ipcRenderer.invoke('cancel-whisper-model-download'),
+  whisperTranscribe: (input, model, language) => ipcRenderer.invoke('whisper-transcribe', { input, model, language }),
+  cancelWhisper: () => ipcRenderer.invoke('cancel-whisper'),
+  onWhisperModelProgress: (cb) => {
+    ipcRenderer.removeAllListeners('whisper-model-progress');
+    ipcRenderer.on('whisper-model-progress', (_e, ratio) => cb(ratio));
+  }
 });

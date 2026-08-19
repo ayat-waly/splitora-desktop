@@ -126,6 +126,15 @@ canvas#textPreview{width:100%;max-width:340px;max-height:230px;object-fit:contai
 .cap-style{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:8px;cursor:pointer;font-family:inherit;font-size:.72rem;font-weight:700;color:var(--navy);text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
 .cap-style.active{border-color:var(--blue);background:#eef4ff}
 .cap-style-preview{width:100%;height:38px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+.whisper-panel{display:none;margin-top:12px;background:#f7f9fd;border:1.5px solid var(--border);border-radius:12px;padding:14px}
+.whisper-panel.show{display:block}
+.whisper-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.whisper-row label{font-size:.78rem;font-weight:700;color:var(--navy)}
+.whisper-row select{flex:0 0 auto;font-family:inherit;font-size:.78rem;padding:7px 10px;border-radius:9px;border:1.5px solid var(--border);color:var(--navy);background:#fff}
+.whisper-model-note{font-size:.72rem;color:var(--muted);margin-bottom:10px;line-height:1.7}
+.whisper-panel .url-dl{margin-top:10px}
+.whisper-panel .url-err{margin-top:10px}
+.whisper-panel .url-cancel{margin-top:8px}
 .outdir-row{display:flex;align-items:center;gap:10px;margin-top:14px}
 .outdir-row .path{flex:1;background:#f0f4fb;border-radius:11px;padding:11px 14px;font-size:.78rem;color:var(--muted);direction:ltr;text-align:start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .outdir-row button{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 16px;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer;white-space:nowrap}
@@ -378,7 +387,34 @@ footer{text-align:center;padding:24px 0 6px;color:var(--muted);font-size:.72rem}
         <div class="caption-row">
           <div class="caption-file" id="captionFileName" data-i18n="captionNone">لم يتم اختيار ملف</div>
           <button class="thumb-btn" id="captionBtn" data-i18n="captionBtn">📁 اختيار ملف SRT</button>
+          <button class="thumb-btn" id="whisperToggleBtn" data-i18n="whisperToggleBtn">🤖 توليد تلقائي (Whisper)</button>
           <button class="thumb-clear" id="captionClear" data-i18n="thumbClear" style="display:none">إزالة ✕</button>
+        </div>
+        <div class="whisper-panel" id="whisperPanel">
+          <div class="whisper-row">
+            <label data-i18n="whisperLangLbl">لغة الفيديو</label>
+            <select id="whisperLang">
+              <option value="auto" data-i18n="whisperAuto">تلقائي (اكتشاف اللغة)</option>
+              <option value="ar" data-i18n="whisperAr">العربية</option>
+              <option value="en" data-i18n="whisperEn">الإنجليزية</option>
+            </select>
+          </div>
+          <div class="whisper-row">
+            <label data-i18n="whisperModelLbl">دقة النموذج</label>
+            <select id="whisperModel">
+              <option value="tiny" data-i18n="whisperTiny">سريع (75MB)</option>
+              <option value="base" selected data-i18n="whisperBase">متوسط — موصى به (142MB)</option>
+              <option value="small" data-i18n="whisperSmall">دقيق أكتر (466MB)</option>
+            </select>
+          </div>
+          <div class="whisper-model-note" id="whisperModelNote"></div>
+          <button class="url-btn" id="whisperGoBtn" data-i18n="whisperGoBtn" style="width:100%">✨ توليد الترجمة</button>
+          <button class="url-cancel" id="whisperCancelBtn" data-i18n="cancel" style="display:none">إلغاء</button>
+          <div class="url-dl" id="whisperDl">
+            <div class="bar"><div id="whisperBar"></div></div>
+            <div class="lbl"><span id="whisperStage" data-i18n="whisperStageModel">⬇️ جاري تحميل نموذج التفريغ (أول مرة بس)…</span><b id="whisperPct">0%</b></div>
+          </div>
+          <div class="url-err" id="whisperErr"></div>
         </div>
         <div class="caption-styles" id="captionStyles" style="display:none">
           <button class="cap-style active" data-cap-style="bold">
@@ -471,6 +507,22 @@ const I18N={
   xThumb:'🖼️ ثامنيل المقاطع (صورة الغلاف)',thumbBtn:'📁 اختيار صورة',thumbClear:'إزالة ✕',
   xCaptions:'💬 الترجمة (كابشن)',captionBtn:'📁 اختيار ملف SRT',captionNone:'لم يتم اختيار ملف',
   capBold:'بولد كلاسيك',capBar:'شريط داكن',capPill:'كبسولة ملونة',
+  whisperToggleBtn:'🤖 توليد تلقائي (Whisper)',
+  whisperLangLbl:'لغة الفيديو',whisperAuto:'تلقائي (اكتشاف اللغة)',whisperAr:'العربية',whisperEn:'الإنجليزية',
+  whisperModelLbl:'دقة النموذج',whisperTiny:'سريع (75MB)',whisperBase:'متوسط — موصى به (142MB)',whisperSmall:'دقيق أكتر (466MB)',
+  whisperGoBtn:'✨ توليد الترجمة',
+  whisperModelReady:'✅ النموذج محمّل وجاهز على جهازك.',
+  whisperModelWillDownload:mb=>`⬇️ هيتم تحميل نموذج التفريغ أول مرة (${mb}MB تقريباً) — مرة واحدة بس، بعدها هيشتغل بدون إنترنت.`,
+  whisperNoBinary:'⚠️ مكوّن التفريغ الصوتي غير موجود في هذه النسخة.',
+  whisperStageModel:'⬇️ جاري تحميل نموذج التفريغ (أول مرة بس)…',
+  whisperStageAudio:'🎧 جاري استخراج الصوت من الفيديو…',
+  whisperStageTranscribe:'📝 جاري تفريغ الكلام إلى نص…',
+  whisperDone:'✅ اتولدت الترجمة تلقائياً — اختاري الستايل اللي يعجبك 👇',
+  whisperNeedVideo:'اختاري فيديو الأول قبل توليد الترجمة.',
+  E_NO_WHISPER:'مكوّن التفريغ الصوتي غير موجود في هذه النسخة.',
+  E_NO_MODEL:'نموذج التفريغ غير محمّل — جربي تاني.',
+  E_DOWNLOAD_FAILED:'فشل تحميل نموذج التفريغ — تأكدي من الاتصال بالإنترنت وجربي تاني.',
+  E_NO_OUTPUT:'التفريغ الصوتي لم يُنتج نصاً — جربي فيديو فيه كلام أوضح.',
   thumbNote:'الصورة بتتدمج داخل كل مقطع كصورة غلاف (تظهر في مستكشف الملفات ومشغلات الفيديو). منصات مثل يوتيوب وتيك توك تسمح برفع الثامنيل يدوياً عند النشر.',
   estRanges:n=>`سيتم إنشاء <b>${n} مقطع</b> حسب الأوقات المحددة.`,
   errRange:'راجعي الأوقات: لازم "من" أقل من "إلى" وداخل مدة الفيديو.',
@@ -525,6 +577,22 @@ const I18N={
   xThumb:'🖼️ Clips thumbnail (cover image)',thumbBtn:'📁 Choose image',thumbClear:'Remove ✕',
   xCaptions:'💬 Captions (subtitles)',captionBtn:'📁 Choose SRT file',captionNone:'No file chosen',
   capBold:'Bold classic',capBar:'Dark bar',capPill:'Colored pill',
+  whisperToggleBtn:'🤖 Auto-generate (Whisper)',
+  whisperLangLbl:'Video language',whisperAuto:'Auto-detect',whisperAr:'Arabic',whisperEn:'English',
+  whisperModelLbl:'Model accuracy',whisperTiny:'Fast (75MB)',whisperBase:'Balanced — recommended (142MB)',whisperSmall:'More accurate (466MB)',
+  whisperGoBtn:'✨ Generate captions',
+  whisperModelReady:'✅ Model already downloaded and ready.',
+  whisperModelWillDownload:mb=>`⬇️ The transcription model will download once (~${mb}MB) — after that it works fully offline.`,
+  whisperNoBinary:'⚠️ The transcription engine is missing in this build.',
+  whisperStageModel:'⬇️ Downloading transcription model (one-time)…',
+  whisperStageAudio:'🎧 Extracting audio from video…',
+  whisperStageTranscribe:'📝 Transcribing speech to text…',
+  whisperDone:'✅ Captions generated automatically — pick a style below 👇',
+  whisperNeedVideo:'Choose a video first before generating captions.',
+  E_NO_WHISPER:'The transcription engine is missing in this build.',
+  E_NO_MODEL:'Transcription model is not downloaded — try again.',
+  E_DOWNLOAD_FAILED:'Failed to download the transcription model — check your connection and try again.',
+  E_NO_OUTPUT:'Transcription produced no text — try a video with clearer speech.',
   thumbNote:'The image is embedded in every clip as cover art (shows in file explorers and players). Platforms like YouTube and TikTok let you upload a thumbnail manually when posting.',
   estRanges:n=>`<b>${n} clips</b> will be created from your selected times.`,
   errRange:'Check your times: "from" must be less than "to" and within the video duration.',
@@ -1007,6 +1075,73 @@ document.querySelectorAll('.cap-style').forEach(b=>b.onclick=()=>{
   b.classList.add('active');captionsStyle=b.dataset.capStyle;
 });
 
+/* توليد ترجمة تلقائي (Whisper محلي) */
+let whisperStatusCache=null,whisperBusy=false;
+async function refreshWhisperStatus(){
+  try{ whisperStatusCache=await window.splitora.whisperStatus(); }
+  catch(_){ whisperStatusCache={available:false,models:{}}; }
+  updateWhisperModelNote();
+  return whisperStatusCache;
+}
+function updateWhisperModelNote(){
+  const size=$('whisperModel').value, st=whisperStatusCache, note=$('whisperModelNote');
+  if(!st){note.textContent='';return;}
+  if(!st.available){note.textContent=I18N[lang].whisperNoBinary;return;}
+  const m=st.models[size];
+  note.textContent = (m&&m.downloaded) ? I18N[lang].whisperModelReady : I18N[lang].whisperModelWillDownload(m?m.sizeMB:'~');
+}
+$('whisperModel').onchange=updateWhisperModelNote;
+$('whisperToggleBtn').onclick=async()=>{
+  const willShow=!$('whisperPanel').classList.contains('show');
+  $('whisperPanel').classList.toggle('show',willShow);
+  if(willShow) await refreshWhisperStatus();
+};
+$('whisperCancelBtn').onclick=async()=>{
+  await window.splitora.cancelWhisperModelDownload();
+  await window.splitora.cancelWhisper();
+};
+window.splitora.onWhisperModelProgress(r=>{
+  $('whisperBar').style.width=Math.round(r*100)+'%';
+  $('whisperPct').textContent=Math.round(r*100)+'%';
+});
+$('whisperGoBtn').onclick=async()=>{
+  if(whisperBusy)return;
+  if(!filePath){ $('whisperErr').textContent=I18N[lang].whisperNeedVideo; $('whisperErr').classList.add('show'); return; }
+  whisperBusy=true;
+  $('whisperErr').classList.remove('show');
+  $('whisperGoBtn').disabled=true;
+  $('whisperCancelBtn').style.display='block';
+  $('whisperDl').classList.add('show');
+  $('whisperBar').style.width='0%';$('whisperPct').textContent='0%';
+  const model=$('whisperModel').value, language=$('whisperLang').value;
+  try{
+    const st=whisperStatusCache||await refreshWhisperStatus();
+    if(!st.available) throw new Error('E_NO_WHISPER');
+    const m=st.models[model];
+    if(!m||!m.downloaded){
+      $('whisperStage').textContent=I18N[lang].whisperStageModel;
+      await window.splitora.whisperDownloadModel(model);
+    }
+    $('whisperBar').style.width='100%';$('whisperPct').textContent='100%';
+    $('whisperStage').textContent=I18N[lang].whisperStageTranscribe;
+    const srtPath=await window.splitora.whisperTranscribe(filePath,model,language);
+    captionsPath=srtPath;
+    $('captionFileName').textContent=I18N[lang].whisperDone;
+    $('captionClear').style.display='inline';
+    $('captionStyles').style.display='grid';
+    $('whisperPanel').classList.remove('show');
+  }catch(e){
+    const code=String(e.message||e).replace(/^Error:\s*/,'');
+    $('whisperErr').textContent = I18N[lang][code] || I18N[lang].errProc + code;
+    $('whisperErr').classList.add('show');
+  }finally{
+    whisperBusy=false;
+    $('whisperGoBtn').disabled=false;
+    $('whisperCancelBtn').style.display='none';
+    $('whisperDl').classList.remove('show');
+  }
+};
+
 /* quality + reels + outdir */
 document.querySelectorAll('#qualityOpts .opt').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#qualityOpts .opt').forEach(x=>x.classList.remove('active'));
@@ -1077,6 +1212,9 @@ function resetAll(){
   $('captionStyles').style.display='none';
   document.querySelectorAll('.cap-style').forEach(x=>x.classList.remove('active'));
   const defCapStyle=document.querySelector('[data-cap-style="bold"]'); if(defCapStyle)defCapStyle.classList.add('active');
+  $('whisperPanel').classList.remove('show');
+  $('whisperErr').classList.remove('show');
+  $('whisperDl').classList.remove('show');
 
   // الجودة وReels
   quality='copy';

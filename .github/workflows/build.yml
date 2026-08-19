@@ -48,6 +48,36 @@ jobs:
           curl -L -o bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux
           chmod +x bin/yt-dlp
 
+      - name: Build whisper.cpp (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build whisper-src/build --config Release -j
+          mkdir -p bin
+          find whisper-src/build -iname "whisper-cli.exe" -exec cp {} bin/whisper-cli.exe \;
+        shell: bash
+
+      - name: Build whisper.cpp (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build whisper-src/build --config Release -j
+          mkdir -p bin
+          find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
+          chmod +x bin/whisper-cli
+
+      - name: Build whisper.cpp (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build whisper-src/build --config Release -j
+          mkdir -p bin
+          find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
+          chmod +x bin/whisper-cli
+
       - name: Build installers
         run: npx electron-builder --publish never
         env:
