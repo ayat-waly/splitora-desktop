@@ -52,31 +52,36 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli.exe" -exec cp {} bin/whisper-cli.exe \;
+          # شبكة أمان: لو أي نسخة مستقبلية من whisper.cpp رجّعت تبني DLLs رغم الإعداد الثابت،
+          # ننسخها جنب الملف التنفيذي عشان مايفشلش بـ "DLL not found" على جهاز المستخدم
+          find whisper-src/build -iname "*.dll" -exec cp {} bin/ \; || true
         shell: bash
 
       - name: Build whisper.cpp (macOS)
         if: runner.os == 'macOS'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
           chmod +x bin/whisper-cli
+          find whisper-src/build -iname "*.dylib" -exec cp {} bin/ \; || true
 
       - name: Build whisper.cpp (Linux)
         if: runner.os == 'Linux'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
           chmod +x bin/whisper-cli
+          find whisper-src/build -iname "*.so*" -exec cp {} bin/ \; || true
 
       - name: Build installers
         run: npx electron-builder --publish never
