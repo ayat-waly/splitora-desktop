@@ -265,7 +265,18 @@ ipcMain.handle('split', async (_e, opts) => {
     if (cap && h > cap) h = cap;
     return h;
   }
+  // عرض المخرج الفعلي — لازم يتحسب عشان نديه لـ libass كـ original_size (شوفي الشرح تحت)
+  function computeOutW(h) {
+    if (reels) return quality === '720' ? 720 : 1080;
+    if (videoW && videoH) {
+      let w = Math.round(videoW * (h / videoH));
+      if (w % 2 !== 0) w -= 1; // scale=-2 دايماً بتطلّع عرض زوجي
+      return w;
+    }
+    return videoW || 1280;
+  }
   const outH = computeOutH();
+  const outW = computeOutW(outH);
   const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle, outH) : '';
   const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
   if (capsTmpDir) fs.mkdirSync(capsTmpDir, { recursive: true });
@@ -273,7 +284,10 @@ ipcMain.handle('split', async (_e, opts) => {
   // دالة بتاخد مسار SRT للمقطع الحالي (بدون إزاحة للأوتوماتيك، بإزاحة للمقاطع المخصصة)
   function captionsFilterFor(srtPathForThisClip) {
     if (!srtPathForThisClip) return null;
-    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}'`;
+    // original_size بيقول لـ libass إن قيم FontSize/MarginV محسوبة أصلاً على دقة outW×outH،
+    // فمايعملش تكبير تلقائي إضافي بناءً على دقة PlayRes الافتراضية (384×288) اللي بييجي بيها SRT بدون ASS header.
+    // ده هو سبب ظهور الترجمة عملاقة/متراكبة.
+    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}':original_size=${outW}x${outH}`;
   }
 
   // dedicated subfolder per job: <video name>_parts, deduped
