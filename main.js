@@ -577,21 +577,22 @@ function bundledWhisper() {
   return candidates.find(p => { try { return fs.existsSync(p); } catch (_) { return false; } }) || null;
 }
 function whisperBinPath() {
-  try {
-    const dir = path.join(app.getPath('userData'), 'bin');
-    const target = path.join(dir, WHISPER_NAME);
-    if (!fs.existsSync(target)) {
-      const src = bundledWhisper();
-      if (!src) return null;
-      fs.mkdirSync(dir, { recursive: true });
-      fs.copyFileSync(src, target);
-    }
-    if (process.platform !== 'win32') { try { fs.chmodSync(target, 0o755); } catch (_) {} }
-    return target;
-  } catch (_) { return bundledWhisper(); }
+  // على عكس yt-dlp، الأداة دي مالهاش تحديث ذاتي، فمفيش داعي لنسخة في userData
+  // (ده كان هو سبب رجوع نفس الخطأ بعد كل تحديث: نسخة قديمة معطوبة كانت متخزنة
+  // هناك من إصدار فاشل قبل كده وبتتستخدم بدل الملف الجديد المُصلَّح داخل الإصدار).
+  const p = bundledWhisper();
+  if (p && process.platform !== 'win32') { try { fs.chmodSync(p, 0o755); } catch (_) {} }
+  return p;
 }
 let WHISPER = null;
-app.whenReady().then(() => { WHISPER = whisperBinPath(); });
+app.whenReady().then(() => {
+  WHISPER = whisperBinPath();
+  // تنضيف أي نسخة قديمة معطوبة كانت اتخزنت في userData من إصدارات سابقة
+  try {
+    const stale = path.join(app.getPath('userData'), 'bin', WHISPER_NAME);
+    if (fs.existsSync(stale)) fs.unlinkSync(stale);
+  } catch (_) {}
+});
 
 // موديلات ggml الرسمية من مستودع whisper.cpp — متعددة اللغات (تدعم العربي والإنجليزي وغيرهم)
 const WHISPER_MODELS = {
