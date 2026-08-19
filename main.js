@@ -698,7 +698,7 @@ ipcMain.handle('whisper-transcribe', async (_e, opts) => {
       p.on('close', code => {
         currentWhisperJob = null;
         if (code === null) return reject(new Error('cancelled'));
-        if (code !== 0) return reject(new Error(extractFfmpegError(err) || ('whisper exit ' + code)));
+        if (code !== 0) return reject(new Error((extractFfmpegError(err) || 'whisper') + ' (exit ' + code + ')'));
         resolve();
       });
     });

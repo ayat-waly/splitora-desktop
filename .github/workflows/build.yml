@@ -52,7 +52,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli.exe" -exec cp {} bin/whisper-cli.exe \;
@@ -65,7 +65,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
@@ -76,7 +76,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           git clone --depth 1 --branch v1.7.4 https://github.com/ggerganov/whisper.cpp.git whisper-src
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_STATIC=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           cmake --build whisper-src/build --config Release -j
           mkdir -p bin
           find whisper-src/build -iname "whisper-cli" -type f -exec cp {} bin/whisper-cli \;
