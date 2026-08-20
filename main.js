@@ -134,11 +134,14 @@ const CAPTION_STYLES = {
   bar: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
   pill: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H00F67C2F,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
 };
-function captionForceStyle(styleKey, outH) {
+function captionForceStyle(styleKey) {
   const base = CAPTION_STYLES[styleKey] || CAPTION_STYLES.bold;
-  const fontSize = Math.max(14, Math.round((outH || 1080) * 0.045));
-  const marginV = Math.round((outH || 1080) * 0.05);
-  return `${base},FontSize=${fontSize},MarginV=${marginV}`;
+  // مهم: مينفعش نحسب FontSize كنسبة من outH الحقيقي بالبيكسل.
+  // FFmpeg بيحوّل SRT لـ ASS داخلياً بدون PlayResY، فبيفترض قيمة افتراضية 288،
+  // وlibass بعدين بيكبّر تلقائياً بنسبة outH/288 عشان يوصل لدقة الفيديو الحقيقية.
+  // يعني لازم نكتب القيمة "كإنها" على قماشة 288، ونسيب libass يكبّرها هو —
+  // مش نكبّرها احنا الاول ويحصل تكبير مضاعف (ده كان سبب الترجمة العملاقة المتراكبة).
+  return `${base},FontSize=22,MarginV=20`;
 }
 
 /* ---------- license ---------- */
@@ -258,37 +261,14 @@ ipcMain.handle('split', async (_e, opts) => {
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
   const hasCaptions = !!(captionsPath && fs.existsSync(captionsPath));
 
-  // نفس منطق حساب أبعاد المخرج المستخدم في الواجهة، لتحجيم خط الترجمة تناسبياً
-  function computeOutH() {
-    if (reels) return quality === '720' ? 1280 : 1920;
-    let h = videoH || 720;
-    const cap = quality === '1080' ? 1080 : quality === '720' ? 720 : 0;
-    if (cap && h > cap) h = cap;
-    return h;
-  }
-  // عرض المخرج الفعلي — لازم يتحسب عشان نديه لـ libass كـ original_size (شوفي الشرح تحت)
-  function computeOutW(h) {
-    if (reels) return quality === '720' ? 720 : 1080;
-    if (videoW && videoH) {
-      let w = Math.round(videoW * (h / videoH));
-      if (w % 2 !== 0) w -= 1; // scale=-2 دايماً بتطلّع عرض زوجي
-      return w;
-    }
-    return videoW || 1280;
-  }
-  const outH = computeOutH();
-  const outW = computeOutW(outH);
-  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle, outH) : '';
+  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle) : '';
   const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
   if (capsTmpDir) fs.mkdirSync(capsTmpDir, { recursive: true });
 
   // دالة بتاخد مسار SRT للمقطع الحالي (بدون إزاحة للأوتوماتيك، بإزاحة للمقاطع المخصصة)
   function captionsFilterFor(srtPathForThisClip) {
     if (!srtPathForThisClip) return null;
-    // original_size بيقول لـ libass إن قيم FontSize/MarginV محسوبة أصلاً على دقة outW×outH،
-    // فمايعملش تكبير تلقائي إضافي بناءً على دقة PlayRes الافتراضية (384×288) اللي بييجي بيها SRT بدون ASS header.
-    // ده هو سبب ظهور الترجمة عملاقة/متراكبة.
-    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}':original_size=${outW}x${outH}`;
+    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}'`;
   }
 
   // dedicated subfolder per job: <video name>_parts, deduped
