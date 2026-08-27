@@ -328,6 +328,8 @@ body.has-file .editor-grid{display:grid}
 .filmstrip-track{position:absolute;inset:0;display:flex;height:100%}
 .filmstrip-track img{height:100%;width:auto;flex:1 1 auto;object-fit:cover;display:block}
 .filmstrip-wave{position:absolute;inset:0;pointer-events:none}
+.filmstrip-segments{position:absolute;inset:0;pointer-events:none;z-index:1}
+.seg-block{position:absolute;top:0;bottom:0;opacity:.42;border-inline:2px solid rgba(255,255,255,.9);box-sizing:border-box}
 .filmstrip-playhead{
   position:absolute;top:0;bottom:0;width:2px;background:var(--accent);
   display:none;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.5);
@@ -366,10 +368,10 @@ body.has-file .editor-grid{display:grid}
 .range-row{
   display:flex;align-items:center;gap:8px;
   background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);
-  padding:7px 10px;
+  padding:7px 10px;border-inline-start:3px solid var(--seg-color,var(--border));
 }
 .range-row .idx{
-  width:22px;height:22px;border-radius:50%;background:var(--sunken);color:var(--text-muted);
+  width:22px;height:22px;border-radius:50%;background:var(--seg-color,var(--sunken));color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:.66rem;font-weight:800;flex:0 0 auto;
 }
 .range-row input{

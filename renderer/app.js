@@ -199,8 +199,12 @@ async function setFile(p){
  document.body.classList.add('has-file');
  setStage('edit');
  $('goBtn').disabled=false;
- updateEstimate();
+ // فيديو جديد = مقاطع مخصصة جديدة (توقيتات الفيديو القديم متبقاش صالحة)
+ $('rangeRows').innerHTML='';
+ segColorCounter=0;
+ addRangeRow();
  initTrimmer(p, info.duration);
+ updateEstimate();
  }catch(e){showErr(String(e.message||e));}
 }
 
@@ -264,6 +268,7 @@ $('customSec').oninput=e=>{const v=+e.target.value;if(v>0){clipSec=v;document.qu
 function updateEstimate(){
  const est=$('estimate');
  if(splitMode==='ranges'){
+ renderSegmentOverlay();
  const r=readRanges();
  if(!r.error&&r.ranges&&r.ranges.length){est.innerHTML=I18N[lang].estRanges(r.ranges.length);est.classList.add('show');}
  else est.classList.remove('show');
@@ -303,10 +308,15 @@ function parseTime(s){
  if(frames)sec+=frames/(videoFps>0?videoFps:30);
  return sec;
 }
+const SEG_COLORS=['#3454e0','#0f9d72','#e07a34','#b83ad1','#e0344a','#2ec4c4','#c9a227','#7a5cf0'];
+let segColorCounter=0;
 function addRangeRow(from='',to=''){
  const rows=$('rangeRows');
  const row=document.createElement('div');
  row.className='range-row';
+ const color=SEG_COLORS[segColorCounter++%SEG_COLORS.length];
+ row.dataset.color=color;
+ row.style.setProperty('--seg-color',color);
  row.innerHTML=`<span class="idx"></span>
  <input type="text" class="r-from" placeholder="${t('fromPh')}" value="${from}">
  <span class="arrow">→</span>
@@ -319,6 +329,26 @@ function addRangeRow(from='',to=''){
 }
 function renumberRanges(){
  document.querySelectorAll('#rangeRows .range-row').forEach((r,i)=>r.querySelector('.idx').textContent=String(i+1).padStart(2,'0'));
+}
+function renderSegmentOverlay(){
+ const box=$('filmstripSegments');
+ if(!box)return;
+ box.innerHTML='';
+ if(!trimDur||trimDur<=0)return;
+ document.querySelectorAll('#rangeRows .range-row').forEach(r=>{
+ const a=parseTime(r.querySelector('.r-from').value);
+ const b=parseTime(r.querySelector('.r-to').value);
+ if(isNaN(a)||isNaN(b)||b<=a)return;
+ const color=r.dataset.color||SEG_COLORS[0];
+ const left=Math.max(0,Math.min(100,(a/trimDur)*100));
+ const width=Math.max(0.3,Math.min(100-left,((b-a)/trimDur)*100));
+ const seg=document.createElement('div');
+ seg.className='seg-block';
+ seg.style.left=left+'%';
+ seg.style.width=width+'%';
+ seg.style.background=color;
+ box.appendChild(seg);
+ });
 }
 function readRanges(){
  const out=[];
@@ -713,6 +743,7 @@ function resetAll(){
 
  // المقاطع المخصصة والسلايدر
  $('rangeRows').innerHTML='';
+ segColorCounter=0;
  addRangeRow();
  trimStart=null;trimEnd=null;trimDur=0;
  filmstripLoadId++; // إلغاء أي تحميل شغال
@@ -723,6 +754,7 @@ function resetAll(){
  $('filmstripTrack').innerHTML='';
  $('filmstripPlayhead').style.display='none';
  $('filmstripLoading').style.display='none';
+ $('filmstripSegments').innerHTML='';
  prevVideo.removeAttribute('src');prevVideo.load();
  renderTrim();
 
