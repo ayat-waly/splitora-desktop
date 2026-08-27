@@ -179,7 +179,22 @@
             </div>
             <div class="trim-hint" data-i18n="trimHint">شغّلي الفيديو ووقّفي عند اللحظة اللي عايزاها، وادوسي "حددي هنا". تقدري كمان تكتبي الوقت يدوياً في الخانات لو حابة.</div>
           </div>
+          <div class="seg-toolbar">
+            <span class="seg-toolbar-title" data-i18n="segToolbarTitle">المقاطع المحددة للتصدير</span>
+            <div class="seg-toolbar-actions">
+              <button type="button" class="seg-tool-btn add" id="segAddBtn" title="إضافة مقطع فاضي">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button type="button" class="seg-tool-btn split" id="segSplitBtn" title="تقسيم المقطع عند المؤشر">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M5 12h3M16 12h3"/><circle cx="12" cy="12" r="2.4"/></svg>
+              </button>
+              <button type="button" class="seg-tool-btn del" id="segDelLastBtn" title="حذف آخر مقطع">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
           <div class="range-rows" id="rangeRows"></div>
+          <div class="seg-total" id="segTotal"></div>
           <button class="add-range" id="addRange" data-i18n="addRange">＋ إضافة مقطع جديد</button>
           <div class="range-hint" data-i18n="rangeHint">اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.</div>
         </div>

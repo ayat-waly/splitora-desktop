@@ -14,6 +14,7 @@ const I18N={
  foot:'كل المعالجة تتم على جهازك، ملفاتك لا تغادر الجهاز أبداً',
  modeAuto:'تقسيم تلقائي متساوٍ',modeRanges:'مقاطع مخصصة (من → إلى)',
  addRange:'＋ إضافة مقطع جديد',
+ segToolbarTitle:'المقاطع المحددة للتصدير',segTotalLabel:'إجمالي المقاطع',
  rangeHint:'اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.',
  trimFrom:'من',trimTo:'إلى',trimAdd:'إضافة كمقطع',
  markStart:'حددي البداية هنا',markEnd:'حددي النهاية هنا',
@@ -86,6 +87,7 @@ const I18N={
  foot:'All processing happens on your device — your files never leave it',
  modeAuto:'Equal auto-split',modeRanges:'Custom clips (from → to)',
  addRange:'＋ Add another clip',
+ segToolbarTitle:'Segments to export',segTotalLabel:'Total segments',
  rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), hours:minutes:seconds (00:01:25), or with a frame number (00:01:25:13) — each row becomes one clip, in order.',
  trimFrom:'From',trimTo:'To',trimAdd:'Add as clip',
  markStart:'Mark start here',markEnd:'Mark end here',
@@ -269,6 +271,7 @@ function updateEstimate(){
  const est=$('estimate');
  if(splitMode==='ranges'){
  renderSegmentOverlay();
+ updateRowDurations();
  const r=readRanges();
  if(!r.error&&r.ranges&&r.ranges.length){est.innerHTML=I18N[lang].estRanges(r.ranges.length);est.classList.add('show');}
  else est.classList.remove('show');
@@ -321,15 +324,58 @@ function addRangeRow(from='',to=''){
  <input type="text" class="r-from" placeholder="${t('fromPh')}" value="${from}">
  <span class="arrow">→</span>
  <input type="text" class="r-to" placeholder="${t('toPh')}" value="${to}">
+ <span class="r-dur">—</span>
  <button class="del" title="حذف"><svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`;
  row.querySelector('.del').onclick=()=>{row.remove();renumberRanges();updateEstimate();};
  row.querySelectorAll('input').forEach(i=>i.oninput=updateEstimate);
  rows.appendChild(row);
  renumberRanges();
+ return row;
 }
 function renumberRanges(){
  document.querySelectorAll('#rangeRows .range-row').forEach((r,i)=>r.querySelector('.idx').textContent=String(i+1).padStart(2,'0'));
 }
+function updateRowDurations(){
+ let total=0;
+ document.querySelectorAll('#rangeRows .range-row').forEach(r=>{
+ const a=parseTime(r.querySelector('.r-from').value);
+ const b=parseTime(r.querySelector('.r-to').value);
+ const durEl=r.querySelector('.r-dur');
+ if(!isNaN(a)&&!isNaN(b)&&b>a){durEl.textContent=fmtTrim(b-a);total+=(b-a);}
+ else durEl.textContent='—';
+ });
+ const totalEl=$('segTotal');
+ if(totalEl){
+ const n=document.querySelectorAll('#rangeRows .range-row').length;
+ totalEl.innerHTML=`<span data-i18n="segTotalLabel">إجمالي المقاطع</span> (${n}): <b>${fmtTrim(total)}</b>`;
+ }
+}
+/* toolbar: add / split-at-playhead / remove-last */
+$('segAddBtn').onclick=()=>{addRangeRow();updateEstimate();};
+$('segDelLastBtn').onclick=()=>{
+ const all=document.querySelectorAll('#rangeRows .range-row');
+ if(!all.length)return;
+ all[all.length-1].remove();
+ renumberRanges();updateEstimate();
+};
+$('segSplitBtn').onclick=()=>{
+ if(prevVideo.readyState<1)return;
+ const cur=prevVideo.currentTime;
+ const rows=Array.from(document.querySelectorAll('#rangeRows .range-row'));
+ for(const r of rows){
+ const a=parseTime(r.querySelector('.r-from').value);
+ const b=parseTime(r.querySelector('.r-to').value);
+ if(isNaN(a)||isNaN(b)||b<=a)continue;
+ if(cur>a+0.05&&cur<b-0.05){
+ r.querySelector('.r-to').value=cur.toFixed(2);
+ const newRow=addRangeRow(cur.toFixed(2),b.toFixed(2));
+ rows.length; // no-op, keeps lint calm
+ r.parentNode.insertBefore(newRow,r.nextSibling);
+ renumberRanges();updateEstimate();
+ return;
+ }
+ }
+};
 function renderSegmentOverlay(){
  const box=$('filmstripSegments');
  if(!box)return;
