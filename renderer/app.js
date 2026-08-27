@@ -550,29 +550,24 @@ function roundRect(ctx,x,y,w,hh,r){
  ctx.arcTo(x,y+hh,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
 }
 function drawTextPreview(){
- const pv=$('textPreview');
+ const el=$('videoTextOverlay');
  const text=$('ovText').value.trim();
- if(!text){pv.style.display='none';return;}
- const [W,H]=outDims();
- const c=drawTextCanvas(W,H);
- if(!c){pv.style.display='none';return;}
- pv.width=W;pv.height=H;
- const ctx=pv.getContext('2d');
- // خلفية: فريم حقيقي من الفيديو المرفوع (لو جاهز) بدل الشطرنج الفاضي
+ if(!text){ el.style.display='none'; return; }
+ el.className='video-text-overlay pos-'+ovPos+' style-'+ovStyle;
+ el.innerHTML='';
+ const lines=text.split(/\n/).slice(0,3);
+ lines.forEach(line=>{
+ const span=document.createElement('span');
+ span.textContent=line;
+ el.appendChild(span);
+ });
  const vid=$('prevVideo');
- if(vid && vid.readyState>=2 && vid.videoWidth){
- const vr=vid.videoWidth/vid.videoHeight, tr=W/H;
- let sw=vid.videoWidth, sh=vid.videoHeight, sx=0, sy=0;
- if(vr>tr){ sw=vid.videoHeight*tr; sx=(vid.videoWidth-sw)/2; }
- else{ sh=vid.videoWidth/tr; sy=(vid.videoHeight-sh)/2; }
- ctx.drawImage(vid,sx,sy,sw,sh,0,0,W,H);
- }else{
- const g=ctx.createLinearGradient(0,0,0,H);
- g.addColorStop(0,'#1c2b4a');g.addColorStop(1,'#0d1626');
- ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ const rect=vid.getBoundingClientRect();
+ if(rect.width>0&&rect.height>0){
+ const fsz=Math.max(12,Math.round(Math.min(rect.width,rect.height*0.56)*0.07));
+ el.style.fontSize=fsz+'px';
  }
- ctx.drawImage(c,0,0);
- pv.style.display='block';pv.style.aspectRatio=W+'/'+H;
+ el.style.display='flex';
 }
 
 /* fps */
@@ -738,7 +733,7 @@ function resetAll(){
  document.querySelectorAll('#posRow .pos-opt').forEach(x=>x.classList.remove('active'));
  const defStyle=document.querySelector('[data-style="shadow"]'); if(defStyle)defStyle.classList.add('active');
  const defPos=document.querySelector('[data-pos="bottom"]'); if(defPos)defPos.classList.add('active');
- $('textPreview').style.display='none';
+ $('videoTextOverlay').style.display='none';
 
  fpsVal=0;
  document.querySelectorAll('#fpsRow .fps-opt').forEach(x=>x.classList.remove('active'));
