@@ -377,22 +377,23 @@ $('segSplitBtn').onclick=()=>{
  }
 };
 function renderSegmentOverlay(){
- const box=$('filmstripSegments');
+ const box=$('segmentsStrip');
  if(!box)return;
  box.innerHTML='';
  if(!trimDur||trimDur<=0)return;
- document.querySelectorAll('#rangeRows .range-row').forEach(r=>{
+ document.querySelectorAll('#rangeRows .range-row').forEach((r,i)=>{
  const a=parseTime(r.querySelector('.r-from').value);
  const b=parseTime(r.querySelector('.r-to').value);
  if(isNaN(a)||isNaN(b)||b<=a)return;
  const color=r.dataset.color||SEG_COLORS[0];
  const left=Math.max(0,Math.min(100,(a/trimDur)*100));
- const width=Math.max(0.3,Math.min(100-left,((b-a)/trimDur)*100));
+ const width=Math.max(0.6,Math.min(100-left,((b-a)/trimDur)*100));
  const seg=document.createElement('div');
- seg.className='seg-block';
+ seg.className='seg-pill';
  seg.style.left=left+'%';
  seg.style.width=width+'%';
  seg.style.background=color;
+ seg.textContent=String(i+1).padStart(2,'0');
  box.appendChild(seg);
  });
 }
@@ -800,7 +801,7 @@ function resetAll(){
  $('filmstripTrack').innerHTML='';
  $('filmstripPlayhead').style.display='none';
  $('filmstripLoading').style.display='none';
- $('filmstripSegments').innerHTML='';
+ $('segmentsStrip').innerHTML='';
  prevVideo.removeAttribute('src');prevVideo.load();
  renderTrim();
 
