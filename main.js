@@ -83,6 +83,12 @@ function hms(sec) {
 }
 
 /* ---------- captions (SRT) ---------- */
+ipcMain.handle('read-captions', async (_e, file) => {
+  if (typeof file !== 'string' || path.extname(file).toLowerCase() !== '.srt') throw new Error('Expected an SRT file');
+  const stat = await fs.promises.stat(file);
+  if (!stat.isFile() || stat.size > 5 * 1024 * 1024) throw new Error('Subtitle file is too large');
+  return parseSrt(await fs.promises.readFile(file, 'utf8'));
+});
 function srtTimeToSec(t) {
   const m = t.match(/(\d+):(\d{2}):(\d{2})[,.](\d{3})/);
   if (!m) return 0;
