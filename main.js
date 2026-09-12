@@ -95,9 +95,9 @@ function srtTimeToSec(t) {
   return (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000;
 }
 function secToSrtTime(s) {
-  s = Math.max(0, s);
+  s = Math.round(Math.max(0, s) * 1000) / 1000;
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
-  const ms = Math.round((s - Math.floor(s)) * 1000);
+  const ms = Math.round(s * 1000) % 1000;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
 }
 function parseSrt(text) {
@@ -112,7 +112,31 @@ function parseSrt(text) {
     const textLines = lines.slice(lines.indexOf(timeLine) + 1);
     if (textLines.length) cues.push({ start, end, text: textLines.join('\n') });
   }
-  return cues;
+  return readableCaptionCues(cues);
+}
+// Old Whisper files may contain an entire paragraph in one cue. Paginate before
+// clipping so preview, manual cuts and automatic cuts all share the same timing.
+// SRT has no word timestamps: page boundaries are proportional estimates.
+function readableCaptionCues(cues) {
+  const result=[];
+  for(const cue of cues){
+    if(!Number.isFinite(cue.start)||!Number.isFinite(cue.end)||cue.end<=cue.start)continue;
+    const words=cue.text.replace(/<[^>]*>/g,'').replace(/\{[^}]*\}/g,'').trim().split(/\s+/).filter(Boolean);
+    const lines=[];let line='';
+    for(const word of words){
+      if(line && (line+' '+word).length>36){lines.push(line);line=word;}
+      else line+=(line?' ':'')+word;
+    }
+    if(line)lines.push(line);
+    const pages=[];
+    for(let i=0;i<lines.length;i+=2)pages.push(lines.slice(i,i+2).join('\n'));
+    const total=pages.reduce((n,p)=>n+p.length,0);let used=0;
+    for(const text of pages){
+      const start=cue.start+(cue.end-cue.start)*used/total;used+=text.length;
+      result.push({start,end:cue.start+(cue.end-cue.start)*used/total,text});
+    }
+  }
+  return result;
 }
 function writeSrt(cues) {
   return cues.map((c, i) => `${i + 1}\n${secToSrtTime(c.start)} --> ${secToSrtTime(c.end)}\n${c.text}\n`).join('\n');
@@ -277,7 +301,9 @@ ipcMain.handle('split', async (_e, opts) => {
   // دالة بتاخد مسار SRT للمقطع الحالي (بدون إزاحة للأوتوماتيك، بإزاحة للمقاطع المخصصة)
   function captionsFilterFor(srtPathForThisClip) {
     if (!srtPathForThisClip) return null;
-    return `subtitles=filename=${ffFilterPath(srtPathForThisClip)}:force_style='${capForceStyle}'`;
+    const readablePath=path.join(capsTmpDir,'readable_'+Math.random().toString(36).slice(2)+'.srt');
+    fs.writeFileSync(readablePath,writeSrt(parseSrt(fs.readFileSync(srtPathForThisClip,'utf8'))),'utf8');
+    return `subtitles=filename=${ffFilterPath(readablePath)}:force_style='${capForceStyle}'`;
   }
 
   // dedicated subfolder per job: <video name>_parts, deduped
@@ -671,7 +697,7 @@ ipcMain.handle('whisper-transcribe', async (_e, opts) => {
     await run(FFMPEG, ['-hide_banner', '-y', '-i', input, '-vn', '-ac', '1', '-ar', '16000', wavPath]);
 
     await new Promise((resolve, reject) => {
-      const args = ['-m', modelPath, '-f', wavPath, '-osrt', '-of', outBase, '-l', language || 'auto', '-nt'];
+      const args = ['-m', modelPath, '-f', wavPath, '-osrt', '-of', outBase, '-l', language || 'auto', '-ml', '42', '-sow', '-nt'];
       const p = spawn(WHISPER, args, { windowsHide: true });
       currentWhisperJob = p;
       let err = '';
