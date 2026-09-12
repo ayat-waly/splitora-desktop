@@ -20,10 +20,10 @@ let currentJob = null; // active ffmpeg child process
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1000,
-    height: 780,
-    minWidth: 720,
-    minHeight: 600,
+    width: 1440,
+    height: 900,
+    minWidth: 960,
+    minHeight: 680,
     icon: path.join(__dirname, 'build', 'icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
@@ -130,18 +130,21 @@ function ffFilterPath(p) {
   return `'${s}'`;
 }
 const CAPTION_STYLES = {
-  bold: 'FontName=Arial,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2.5,Shadow=0,Bold=1,Alignment=2',
-  bar: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
+  bold: 'FontName=Arial,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1.6,Shadow=0,Bold=1,Alignment=2',
+  bar: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H90000000,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
   pill: 'FontName=Arial,PrimaryColour=&H00FFFFFF,BackColour=&H00F67C2F,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2',
 };
-function captionForceStyle(styleKey) {
+function captionForceStyle(styleKey, aspectRatio=16/9) {
   const base = CAPTION_STYLES[styleKey] || CAPTION_STYLES.bold;
   // مهم: مينفعش نحسب FontSize كنسبة من outH الحقيقي بالبيكسل.
   // FFmpeg بيحوّل SRT لـ ASS داخلياً بدون PlayResY، فبيفترض قيمة افتراضية 288،
   // وlibass بعدين بيكبّر تلقائياً بنسبة outH/288 عشان يوصل لدقة الفيديو الحقيقية.
   // يعني لازم نكتب القيمة "كإنها" على قماشة 288، ونسيب libass يكبّرها هو —
   // مش نكبّرها احنا الاول ويحصل تكبير مضاعف (ده كان سبب الترجمة العملاقة المتراكبة).
-  return `${base},FontSize=22,MarginV=20`;
+  // 11 على قماشة ASS الافتراضية (288px) ≈ 41px في 1080p: واضح بدون تغطية المشهد.
+  // WrapStyle=0 يلف السطور الطويلة بذكاء، وMarginL/R يمنعان وصول النص لحواف الفيديو العمودي.
+  const fontSize=(11*Math.min(1,Math.max(0.25,aspectRatio))).toFixed(2);
+  return `${base},FontSize=${fontSize},MarginV=18,MarginL=28,MarginR=28,WrapStyle=0,ScaledBorderAndShadow=1`;
 }
 
 /* ---------- license ---------- */
@@ -251,7 +254,7 @@ ipcMain.handle('default-outdir', () => app.getPath('videos') || app.getPath('dow
 
 ipcMain.handle('split', async (_e, opts) => {
   const { input, outDir, clipSec, quality, reels, duration,
-          mode, ranges, fps, overlayPng, thumbnail,
+          mode, ranges, fps, thumbnail,
           captionsPath, captionsStyle, videoW, videoH } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
 
@@ -261,7 +264,7 @@ ipcMain.handle('split', async (_e, opts) => {
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
   const hasCaptions = !!(captionsPath && fs.existsSync(captionsPath));
 
-  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle) : '';
+  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle,reels?9/16:(videoW&&videoH?videoW/videoH:16/9)) : '';
   const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
   if (capsTmpDir) fs.mkdirSync(capsTmpDir, { recursive: true });
 
@@ -278,19 +281,17 @@ ipcMain.handle('split', async (_e, opts) => {
   while (fs.existsSync(jobDir)) jobDir = path.join(outDir, `${base}_parts_${k++}`);
   fs.mkdirSync(jobDir, { recursive: true });
 
-  const hasOverlay = overlayPng && fs.existsSync(overlayPng);
   const useFps = fps && fps > 0;
-  const needsEncode = reels || quality !== 'copy' || hasOverlay || useFps || hasWatermark || hasCaptions;
+  const needsEncode = reels || quality !== 'copy' || useFps || hasWatermark || hasCaptions;
 
-  // ترتيب مداخل الـ overlay: العلامة المائية (لو الفترة تجريبية) ثم النص المخصص للمستخدم
+  // مدخل العلامة المائية خلال الفترة التجريبية.
   function overlayInputs() {
     const list = [];
     if (hasWatermark) list.push(watermarkPath);
-    if (hasOverlay) list.push(overlayPng);
     return list;
   }
 
-  // scale/pad/fps/captions chain، وسلسلة overlay عامة بتدعم علامة مائية + نص فوق بعض
+  // scale/pad/fps/captions chain، مع العلامة المائية التجريبية عند الحاجة.
   function filterArgs(capFilterStr) {
     const vf = [];
     if (reels) {
@@ -301,7 +302,7 @@ ipcMain.handle('split', async (_e, opts) => {
     if (useFps) vf.push('fps=' + fps);
     if (capFilterStr) vf.push(capFilterStr);
 
-    if (!hasWatermark && !hasOverlay) return vf.length ? ['-vf', vf.join(',')] : [];
+    if (!hasWatermark) return vf.length ? ['-vf', vf.join(',')] : [];
 
     const filters = [];
     let cur = '[0:v]';
@@ -310,7 +311,6 @@ ipcMain.handle('split', async (_e, opts) => {
     const steps = [];
     let inputIdx = 1;
     if (hasWatermark) steps.push({ input: inputIdx++, scale: 'iw*0.16:-1', pos: 'W-w-16:H-h-16' });
-    if (hasOverlay) steps.push({ input: inputIdx++, scale: null, pos: '(W-w)/2:(H-h)/2' });
 
     steps.forEach((s, i) => {
       const isLast = i === steps.length - 1;
@@ -326,7 +326,7 @@ ipcMain.handle('split', async (_e, opts) => {
     return ['-filter_complex', filters.join(';')];
   }
   function mapArgs() {
-    return (hasWatermark || hasOverlay) ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
+    return hasWatermark ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
   }
   const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'];
 
