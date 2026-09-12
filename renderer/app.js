@@ -391,7 +391,7 @@ function renderSegmentOverlay(){
  seg.style.background=color;
  seg.textContent=String(i+1).padStart(2,'0');
  seg.title=fmtTrim(a)+' → '+fmtTrim(b);
- seg.onclick=()=>{if(typeof selectClip==='function')selectClip(r);};
+ seg.onclick=e=>{e.stopPropagation();if(typeof selectClip==='function')selectClip(r);};
  box.appendChild(seg);
  });
 }
@@ -556,6 +556,7 @@ prevVideo.addEventListener('timeupdate',()=>{
 prevVideo.addEventListener('loadeddata',syncPlayerToolbar);
 function setZoom(z){
  zoomLevel=Math.min(8,Math.max(1,z));
+ if($('zoomValue'))$('zoomValue').value=zoomLevel.toFixed(1)+'×';
  $('filmstrip').style.width=(zoomLevel*100)+'%';
  drawWaveform(lastPeaks); // إعادة الرسم على العرض الجديد
  if(trimDur>0){
@@ -613,6 +614,7 @@ $('captionBtn').onclick=async()=>{
  const p=await window.splitora.pickSrt();
  if(p){
  captionsPath=p;
+ await loadCaptionPreview(p);
  $('captionFileName').textContent=p.split(/[\\/]/).pop();
  $('captionClear').style.display='inline';
  $('captionStyles').style.display='grid';
@@ -620,6 +622,7 @@ $('captionBtn').onclick=async()=>{
 };
 $('captionClear').onclick=()=>{
  captionsPath=null;
+ clearCaptionPreview();
  $('captionFileName').textContent=I18N[lang].captionNone;
  $('captionClear').style.display='none';
  $('captionStyles').style.display='none';
@@ -627,6 +630,7 @@ $('captionClear').onclick=()=>{
 document.querySelectorAll('.cap-style').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('.cap-style').forEach(x=>x.classList.remove('active'));
  b.classList.add('active');captionsStyle=b.dataset.capStyle;
+ updateCaptionPreviewStyle();
 });
 
 /* توليد ترجمة تلقائي (Whisper محلي) */
@@ -680,6 +684,7 @@ $('whisperGoBtn').onclick=async()=>{
  $('whisperStage').textContent=I18N[lang].whisperStageTranscribe;
  const srtPath=await window.splitora.whisperTranscribe(filePath,model,language);
  captionsPath=srtPath;
+ await loadCaptionPreview(srtPath);
  $('captionFileName').textContent=I18N[lang].whisperDone;
  $('captionClear').style.display='inline';
  $('captionStyles').style.display='grid';
@@ -759,6 +764,7 @@ function resetAll(){
  $('thumbClear').classList.remove('show');
 
  captionsPath=null;captionsStyle='bold';
+ clearCaptionPreview();
  $('captionFileName').textContent=I18N[lang].captionNone;
  $('captionClear').style.display='none';
  $('captionStyles').style.display='none';

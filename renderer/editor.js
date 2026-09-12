@@ -19,6 +19,28 @@ $('trimmer').prepend(timelineTools);
 const selection=document.createElement('div');
 selection.id='trimSelection';
 $('filmstrip').append(selection);
+$('filmstrip').append($('segmentsStrip'));
+// Keep the transport and cut points together at the visual center.
+const cutControls=document.querySelector('.mark-row');
+document.querySelector('.player-toolbar').after(cutControls);
+document.querySelector('.trim-summary').hidden=true;
+let pendingCut=false;
+const markStartOriginal=markStartBtn.onclick,markEndOriginal=markEndBtn.onclick;
+markStartBtn.onclick=()=>{
+ if(prevVideo.readyState<1)return;
+ setMode('ranges');trimEnd=null;markStartOriginal();pendingCut=true;
+ cutControls.classList.add('awaiting-end');
+};
+markEndBtn.onclick=()=>{
+ if(!pendingCut||prevVideo.readyState<1)return;
+ markEndOriginal();
+ if(trimStart!=null&&trimEnd>trimStart){
+  trimAddBtn.onclick();pendingCut=false;cutControls.classList.remove('awaiting-end');
+  const row=$('rangeRows').lastElementChild;
+  document.querySelectorAll('.range-row').forEach(r=>r.classList.toggle('selected',r===row));
+ }
+};
+prevVideo.addEventListener('emptied',()=>{pendingCut=false;cutControls.classList.remove('awaiting-end');});
 const scrubber=document.createElement('input');
 scrubber.type='range';scrubber.min='0';scrubber.max='1000';scrubber.step='1';scrubber.value='0';
 scrubber.id='playerSeek';scrubber.setAttribute('aria-label','Seek video');
@@ -74,6 +96,56 @@ document.addEventListener('keydown',e=>{
  else seekBy((key==='arrowleft'?-1:1)*(e.shiftKey?1:1/videoFps));
 });
 new ResizeObserver(()=>drawWaveform(lastPeaks)).observe($('filmstrip'));
+// Surface captions directly in the inspector instead of hiding them in extras.
+const captionPanel=$('captionBtn').closest('.extra-block');
+captionPanel.classList.add('caption-panel');
+inspectorScroll.insertBefore(captionPanel,settings);
+const captionStatus=document.createElement('p');captionStatus.id='captionPreviewStatus';
+captionStatus.dataset.i18n='captionPreviewHelp';captionPanel.append(captionStatus);
+Object.assign(I18N.ar,{captionPreviewHelp:'اختاري ملف SRT أو ولّدي الترجمة لظهورها أثناء تشغيل الفيديو وفي التصدير.',trimHint:'حددي البداية ثم النهاية — يُضاف المقطع تلقائيًا. تعديل الأوقات من القائمة الجانبية.',lightTheme:'الوضع الفاتح',darkTheme:'الوضع الداكن'});
+Object.assign(I18N.en,{captionPreviewHelp:'Choose an SRT file or generate captions to see them during playback and in exports.',trimHint:'Mark start, then end — the clip is added automatically. Edit times in the sidebar.',lightTheme:'Light mode',darkTheme:'Dark mode'});
+const themeButton=document.createElement('button');themeButton.id='themeToggle';themeButton.className='lang-btn';
+document.querySelector('.topbar-right').prepend(themeButton);
+let theme=localStorage.getItem('splitora-theme')||'dark';
+function applyTheme(){
+ document.documentElement.dataset.theme=theme;
+ themeButton.dataset.i18n=theme==='dark'?'lightTheme':'darkTheme';
+ themeButton.textContent=t(themeButton.dataset.i18n);
+ themeButton.setAttribute('aria-pressed',String(theme==='light'));
+ localStorage.setItem('splitora-theme',theme);
+}
+themeButton.onclick=()=>{theme=theme==='dark'?'light':'dark';applyTheme();};
+applyTheme();
+let captionTrack=null;
+async function loadCaptionPreview(file){
+ clearCaptionPreview();
+ try{
+  const cues=await window.splitora.readCaptions(file);
+  if(captionsPath!==file)return;
+  if(!captionTrack)captionTrack=prevVideo.addTextTrack('subtitles','Splitora');
+  for(const item of cues){
+   if(!Number.isFinite(item.start)||!Number.isFinite(item.end)||item.end<=item.start)continue;
+   const cue=new VTTCue(item.start,item.end,item.text.replace(/<[^>]*>/g,''));
+   cue.align='center';cue.size=84;captionTrack.addCue(cue);
+  }
+  captionTrack.mode='showing';updateCaptionPreviewStyle();
+  captionStatus.removeAttribute('data-i18n');
+  captionStatus.textContent=lang==='ar'?`الترجمة جاهزة للمعاينة والتصدير (${captionTrack.cues.length} سطر)`:`Captions ready for preview and export (${captionTrack.cues.length} cues)`;
+ }catch(e){captionStatus.textContent=String(e.message||e);showErr(String(e.message||e));}
+}
+function clearCaptionPreview(){
+ if(captionTrack){captionTrack.mode='hidden';for(const cue of Array.from(captionTrack.cues||[]))captionTrack.removeCue(cue);captionTrack.mode='disabled';}
+ if(typeof captionStatus!=='undefined'){captionStatus.dataset.i18n='captionPreviewHelp';captionStatus.textContent=t('captionPreviewHelp');}
+}
+function updateCaptionPreviewStyle(){
+ prevVideo.dataset.captionStyle=captionsStyle;
+ const r=prevVideo.getBoundingClientRect();
+ const scale=Math.min(r.width/(videoW||1),r.height/(videoH||1));
+ const size=Math.max(10,Math.min(videoW||1280,videoH||720)*11/288*scale);
+ prevVideo.style.setProperty('--caption-size',size+'px');
+}
+new ResizeObserver(updateCaptionPreviewStyle).observe(prevVideo);
+prevVideo.addEventListener('loadedmetadata',updateCaptionPreviewStyle);
 applyLang();
 setMode('ranges');
 renderTrim();
