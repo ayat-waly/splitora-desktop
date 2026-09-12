@@ -102,6 +102,9 @@ captionPanel.classList.add('caption-panel');
 inspectorScroll.insertBefore(captionPanel,settings);
 const captionStatus=document.createElement('p');captionStatus.id='captionPreviewStatus';
 captionStatus.dataset.i18n='captionPreviewHelp';captionPanel.append(captionStatus);
+const captionNote=document.createElement('p');captionNote.className='inspector-help';captionNote.dataset.i18n='captionTimingNote';captionPanel.append(captionNote);
+Object.assign(I18N.ar,{captionTimingNote:'الفقرات الطويلة تُقسّم إلى سطرين متتابعين. توقيت تقسيم ملفات SRT القديمة تقديري؛ أعيدي التوليد من الفيديو الأصلي لتوقيت أدق. راجعي الكلمات قبل التصدير.'});
+Object.assign(I18N.en,{captionTimingNote:'Long paragraphs are paginated into two-line cues. Timing within old SRT paragraphs is estimated; regenerate from the original video for better timing. Review wording before export.'});
 Object.assign(I18N.ar,{captionPreviewHelp:'اختاري ملف SRT أو ولّدي الترجمة لظهورها أثناء تشغيل الفيديو وفي التصدير.',trimHint:'حددي البداية ثم النهاية — يُضاف المقطع تلقائيًا. تعديل الأوقات من القائمة الجانبية.',lightTheme:'الوضع الفاتح',darkTheme:'الوضع الداكن'});
 Object.assign(I18N.en,{captionPreviewHelp:'Choose an SRT file or generate captions to see them during playback and in exports.',trimHint:'Mark start, then end — the clip is added automatically. Edit times in the sidebar.',lightTheme:'Light mode',darkTheme:'Dark mode'});
 const themeButton=document.createElement('button');themeButton.id='themeToggle';themeButton.className='lang-btn';
@@ -146,6 +149,29 @@ function updateCaptionPreviewStyle(){
 }
 new ResizeObserver(updateCaptionPreviewStyle).observe(prevVideo);
 prevVideo.addEventListener('loadedmetadata',updateCaptionPreviewStyle);
+// One task at a time: keep clips, captions and output settings in separate panels.
+Object.assign(I18N.ar,{inspectorClips:'المقاطع',inspectorCaptions:'الترجمة',inspectorOutput:'التصدير',clipsHelp:'حددي البداية والنهاية أسفل المعاينة. اضغطي على أي مقطع لتعديل توقيته.',outputHelp:'اختاري الجودة ومكان حفظ المقاطع قبل التصدير.'});
+Object.assign(I18N.en,{inspectorClips:'Clips',inspectorCaptions:'Captions',inspectorOutput:'Export',clipsHelp:'Mark start and end below the preview. Select a clip to edit its timing.',outputHelp:'Choose quality and where to save your clips before exporting.'});
+const inspectorNav=document.createElement('div');
+inspectorNav.className='inspector-nav';inspectorNav.setAttribute('role','tablist');
+inspectorNav.setAttribute('aria-label','Editor settings');
+const panes=[];
+for(const [key,nodes] of [
+ ['Clips',[modeTabs,$('panelAuto'),$('estimate'),$('panelRanges')]],
+ ['Captions',[captionPanel]],
+ ['Output',[document.querySelector('.inspector-section'),document.querySelector('.advanced')]]
+]){
+ const pane=document.createElement('section');pane.id='inspector'+key;pane.className='inspector-pane';pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby','tab'+key);
+ const button=document.createElement('button');button.id='tab'+key;button.type='button';button.dataset.i18n='inspector'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls',pane.id);
+ inspectorNav.append(button);pane.append(...nodes);inspectorScroll.append(pane);panes.push({pane,button});
+ button.onclick=()=>{for(const item of panes){const active=item.pane===pane;item.pane.hidden=!active;item.button.setAttribute('aria-selected',String(active));item.button.tabIndex=active?0:-1;}inspectorScroll.scrollTop=0;};
+ button.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const i=panes.findIndex(p=>p.button===button);const next=e.key==='Home'?0:e.key==='End'?panes.length-1:(i+(e.key==='ArrowRight'?1:-1)+panes.length)%panes.length;panes[next].button.click();panes[next].button.focus();};
+}
+settings.remove();inspector.prepend(inspectorNav);panes[0].button.click();
+const clipHelp=document.createElement('p');clipHelp.className='inspector-help';clipHelp.dataset.i18n='clipsHelp';$('panelRanges').prepend(clipHelp);
+const outputHelp=document.createElement('p');outputHelp.className='inspector-help';outputHelp.dataset.i18n='outputHelp';$('inspectorOutput').prepend(outputHelp);
+// Keep one compact add control for explicit time entry; avoid duplicate actions and long instructions.
+$('addRange').hidden=true;document.querySelector('.range-hint').hidden=true;
 applyLang();
 setMode('ranges');
 renderTrim();
