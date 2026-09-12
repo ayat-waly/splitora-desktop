@@ -18,12 +18,10 @@ const I18N={
  rangeHint:'اكتبي الوقت بالثواني (75)، أو دقيقة:ثانية (1:15)، أو ساعة:دقيقة:ثانية (00:01:25)، أو مع رقم الفريم (00:01:25:13) — كل سطر هيطلع مقطع مستقل بالترتيب.',
  trimFrom:'من',trimTo:'إلى',trimAdd:'إضافة كمقطع',
  markStart:'حددي البداية هنا',markEnd:'حددي النهاية هنا',
- filmstripLoading:'جاري تجهيز المعاينة…',
+ filmstripLoading:'جاري تجهيز المعاينة…',playerHint:'المعاينة والتحديد الدقيق للمقاطع',
  trimHint:'شغّلي الفيديو ووقّفي عند اللحظة اللي عايزاها، وادوسي "حددي هنا". تقدري كمان تكتبي الوقت يدوياً في الخانات لو حابة.',
  fromPh:'من (مثال 1:02)',toPh:'إلى (مثال 1:15)',
- sX:'إضافات اختيارية',xText:'نص فوق الفيديو',xTextPh:'اكتبي النص هنا (اختياري)…',
- st1:'أبيض بظل',st2:'أصفر بحدود',st3:'شريط داكن',st4:'كبسولة ملونة',
- pTop:'أعلى',pMid:'وسط',pBot:'أسفل',
+ sX:'إضافات اختيارية',
  xFps:'الفريم ريت (معدل الإطارات)',fpsOrig:'الأصلي',
  xThumb:'ثامنيل المقاطع (صورة الغلاف)',thumbBtn:'اختيار صورة',thumbClear:'إزالة',
  xCaptions:'الترجمة (كابشن)',captionBtn:'اختيار ملف SRT',captionNone:'لم يتم اختيار ملف',
@@ -91,12 +89,10 @@ const I18N={
  rangeHint:'Enter times as seconds (75), minutes:seconds (1:15), hours:minutes:seconds (00:01:25), or with a frame number (00:01:25:13) — each row becomes one clip, in order.',
  trimFrom:'From',trimTo:'To',trimAdd:'Add as clip',
  markStart:'Mark start here',markEnd:'Mark end here',
- filmstripLoading:'Preparing preview…',
+ filmstripLoading:'Preparing preview…',playerHint:'Preview and select clips precisely',
  trimHint:'Play the video and pause at the moment you want, then click "Mark here". You can also type the time directly in the boxes.',
  fromPh:'From (e.g. 1:02)',toPh:'To (e.g. 1:15)',
- sX:'Optional extras',xText:'Text over video',xTextPh:'Type your text here (optional)…',
- st1:'White + shadow',st2:'Yellow outline',st3:'Dark bar',st4:'Color pill',
- pTop:'Top',pMid:'Middle',pBot:'Bottom',
+ sX:'Optional extras',
  xFps:'Frame rate',fpsOrig:'Original',
  xThumb:'Clips thumbnail (cover image)',thumbBtn:'Choose image',thumbClear:'Remove',
  xCaptions:'Captions (subtitles)',captionBtn:'Choose SRT file',captionNone:'No file chosen',
@@ -156,7 +152,7 @@ function applyLang(){
  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{const v=I18N[lang][el.dataset.i18nPh];if(typeof v==='string')el.placeholder=v;});
  updateEstimate();
 }
-function toggleLang(){lang=lang==='ar'?'en':'ar';applyLang();}
+function toggleLang(){lang=lang==='ar'?'en':'ar';applyLang();refreshLicenseUI();}
 document.getElementById('langBtn').addEventListener('click',toggleLang);
 
 const $=id=>document.getElementById(id);
@@ -347,7 +343,7 @@ function updateRowDurations(){
  const totalEl=$('segTotal');
  if(totalEl){
  const n=document.querySelectorAll('#rangeRows .range-row').length;
- totalEl.innerHTML=`<span data-i18n="segTotalLabel">إجمالي المقاطع</span> (${n}): <b>${fmtTrim(total)}</b>`;
+ totalEl.innerHTML=`<span data-i18n="segTotalLabel">${t('segTotalLabel')}</span> (${n}): <b>${fmtTrim(total)}</b>`;
  }
 }
 /* toolbar: add / split-at-playhead / remove-last */
@@ -394,6 +390,8 @@ function renderSegmentOverlay(){
  seg.style.width=width+'%';
  seg.style.background=color;
  seg.textContent=String(i+1).padStart(2,'0');
+ seg.title=fmtTrim(a)+' → '+fmtTrim(b);
+ seg.onclick=()=>{if(typeof selectClip==='function')selectClip(r);};
  box.appendChild(seg);
  });
 }
@@ -425,6 +423,24 @@ const fmtTrim=s=>{
 const prevVideo=$('prevVideo'),markStartBtn=$('markStartBtn'),markEndBtn=$('markEndBtn'),
  trimStartLbl=$('trimStartLbl'),trimEndLbl=$('trimEndLbl'),trimAddBtn=$('trimAddBtn');
 let trimStart=null,trimEnd=null,trimDur=0,zoomLevel=1,lastPeaks=[];
+
+function fmtPlayerTime(value){
+ const sec=Math.max(0,Number(value)||0),m=Math.floor(sec/60),s=sec-m*60;
+ return String(m).padStart(2,'0')+':'+s.toFixed(3).padStart(6,'0');
+}
+function syncPlayerToolbar(){
+ $('playerCurrent').textContent=fmtPlayerTime(prevVideo.currentTime);
+ $('playerDuration').textContent=fmtPlayerTime(prevVideo.duration||trimDur);
+ $('previewPlayBtn').innerHTML=prevVideo.paused
+  ?'<svg class="icon" viewBox="0 0 24 24"><path d="m9 6 9 6-9 6V6Z"/></svg>'
+  :'<svg class="icon" viewBox="0 0 24 24"><path d="M8 6h3v12H8zM14 6h3v12h-3z"/></svg>';
+}
+$('previewPlayBtn').onclick=async()=>{if(prevVideo.readyState<1)return;try{if(prevVideo.paused)await prevVideo.play();else prevVideo.pause();}catch(e){showErr(String(e.message||e));}};
+$('seekBackBtn').onclick=()=>{prevVideo.currentTime=Math.max(0,prevVideo.currentTime-1);};
+$('seekForwardBtn').onclick=()=>{prevVideo.currentTime=Math.min(prevVideo.duration||trimDur,prevVideo.currentTime+1);};
+prevVideo.addEventListener('play',syncPlayerToolbar);
+prevVideo.addEventListener('pause',syncPlayerToolbar);
+prevVideo.addEventListener('loadedmetadata',syncPlayerToolbar);
 
 function initTrimmer(path,duration){
  try{ prevVideo.src=toFileUrl(path); }catch(_e){}
@@ -500,6 +516,13 @@ $('filmstrip').addEventListener('click',(ev)=>{
 function renderTrim(){
  trimStartLbl.value=trimStart==null?'—':fmtTrim(trimStart);
  trimEndLbl.value=trimEnd==null?'—':fmtTrim(trimEnd);
+ const selection=$('trimSelection');
+ if(selection){
+  selection.style.display=trimDur&&trimStart!=null&&trimEnd>trimStart?'block':'none';
+  selection.style.left=(trimStart/trimDur*100)+'%';
+  selection.style.width=((trimEnd-trimStart)/trimDur*100)+'%';
+ }
+ trimAddBtn.disabled=trimStart==null||trimEnd==null||trimEnd<=trimStart;
 }
 markStartBtn.onclick=()=>{
  if(prevVideo.readyState<1)return;
@@ -515,7 +538,7 @@ markEndBtn.onclick=()=>{
  renderTrim();
 };
 prevVideo.addEventListener('timeupdate',()=>{
- drawTextPreview();
+ syncPlayerToolbar();
  if(trimDur>0){
  const track=$('filmstrip'),ph=$('filmstripPlayhead');
  const percent=Math.min(1,Math.max(0,prevVideo.currentTime/trimDur));
@@ -530,7 +553,7 @@ prevVideo.addEventListener('timeupdate',()=>{
  }
  }
 });
-prevVideo.addEventListener('loadeddata',()=>drawTextPreview());
+prevVideo.addEventListener('loadeddata',syncPlayerToolbar);
 function setZoom(z){
  zoomLevel=Math.min(8,Math.max(1,z));
  $('filmstrip').style.width=(zoomLevel*100)+'%';
@@ -551,6 +574,8 @@ $('filmstripScroll').addEventListener('wheel',(ev)=>{
 },{passive:false});
 trimAddBtn.onclick=()=>{
  if(trimStart==null||trimEnd==null||trimEnd<=trimStart)return;
+ setMode('ranges');
+ document.querySelectorAll('#rangeRows .range-row').forEach(row=>{if(!row.querySelector('.r-from').value&&!row.querySelector('.r-to').value)row.remove();});
  addRangeRow(trimStart.toFixed(2),trimEnd.toFixed(2));
  updateEstimate();
 };
@@ -566,86 +591,6 @@ trimStartLbl.addEventListener('change',()=>commitTrimInput('start'));
 trimStartLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimStartLbl.blur();}});
 trimEndLbl.addEventListener('change',()=>commitTrimInput('end'));
 trimEndLbl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();trimEndLbl.blur();}});
-
-/* text overlay */
-let ovStyle='shadow',ovPos='bottom';
-document.querySelectorAll('#styleRow .style-opt').forEach(b=>b.onclick=()=>{
- document.querySelectorAll('#styleRow .style-opt').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');ovStyle=b.dataset.style;drawTextPreview();
-});
-document.querySelectorAll('#posRow .pos-opt').forEach(b=>b.onclick=()=>{
- document.querySelectorAll('#posRow .pos-opt').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');ovPos=b.dataset.pos;drawTextPreview();
-});
-$('ovText').oninput=drawTextPreview;
-function outDims(){
- if(reels)return quality==='720'?[720,1280]:[1080,1920];
- let w=videoW||1280,h=videoH||720;
- const cap=quality==='1080'?1080:quality==='720'?720:0;
- if(cap&&h>cap){w=Math.max(2,Math.round(w*cap/h/2)*2);h=cap;}
- return [w,h];
-}
-function drawTextCanvas(W,H){
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const ctx=c.getContext('2d');
- const text=$('ovText').value.trim();
- if(!text)return null;
- const fsz=Math.round(Math.min(W,H*0.56)*0.07);
- ctx.font=`bold ${fsz}px "IBM Plex Sans Arabic","Segoe UI",Arial,sans-serif`;
- ctx.textAlign='center';ctx.textBaseline='middle';
- const lines=text.split(/\n/).slice(0,3);
- const lh=fsz*1.35;
- const cy=ovPos==='top'?H*0.10:ovPos==='mid'?H*0.5:H*0.88;
- const y0=cy-(lines.length-1)*lh/2;
- lines.forEach((line,i)=>{
- const y=y0+i*lh, x=W/2;
- const tw=ctx.measureText(line).width;
- if(ovStyle==='bar'){
- ctx.save();ctx.fillStyle='rgba(10,16,28,.62)';
- roundRect(ctx,x-tw/2-fsz*.7,y-lh/2,tw+fsz*1.4,lh,fsz*.3);ctx.fill();ctx.restore();
- ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);
- }else if(ovStyle==='pill'){
- ctx.save();
- const g=ctx.createLinearGradient(x-tw/2,0,x+tw/2,0);
- g.addColorStop(0,'#2f7cf6');g.addColorStop(1,'#8b5cf6');
- ctx.fillStyle=g;
- roundRect(ctx,x-tw/2-fsz*.8,y-lh/2,tw+fsz*1.6,lh,lh/2);ctx.fill();ctx.restore();
- ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);
- }else if(ovStyle==='stroke'){
- ctx.lineWidth=Math.max(2,fsz*.14);ctx.strokeStyle='#000';ctx.lineJoin='round';
- ctx.strokeText(line,x,y);
- ctx.fillStyle='#ffd60a';ctx.fillText(line,x,y);
- }else{ // shadow
- ctx.save();ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=fsz*.35;ctx.shadowOffsetY=fsz*.06;
- ctx.fillStyle='#ffffff';ctx.fillText(line,x,y);ctx.restore();
- }
- });
- return c;
-}
-function roundRect(ctx,x,y,w,hh,r){
- ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+hh,r);ctx.arcTo(x+w,y+hh,x,y+hh,r);
- ctx.arcTo(x,y+hh,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
-}
-function drawTextPreview(){
- const el=$('videoTextOverlay');
- const text=$('ovText').value.trim();
- if(!text){ el.style.display='none'; return; }
- el.className='video-text-overlay pos-'+ovPos+' style-'+ovStyle;
- el.innerHTML='';
- const lines=text.split(/\n/).slice(0,3);
- lines.forEach(line=>{
- const span=document.createElement('span');
- span.textContent=line;
- el.appendChild(span);
- });
- const vid=$('prevVideo');
- const rect=vid.getBoundingClientRect();
- if(rect.width>0&&rect.height>0){
- const fsz=Math.max(12,Math.round(Math.min(rect.width,rect.height*0.56)*0.07));
- el.style.fontSize=fsz+'px';
- }
- el.style.display='flex';
-}
 
 /* fps */
 let fpsVal=0;
@@ -754,12 +699,11 @@ $('whisperGoBtn').onclick=async()=>{
 /* quality + reels + outdir */
 document.querySelectorAll('#qualityOpts .opt').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('#qualityOpts .opt').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');quality=b.dataset.q;drawTextPreview();
+ b.classList.add('active');quality=b.dataset.q;
 });
 $('reelsSwitch').onclick=()=>{
  reels=!reels;
  $('reelsSwitch').setAttribute('aria-checked',String(reels));
- drawTextPreview();
 };
 $('outBtn').onclick=async()=>{const d=await window.splitora.pickOutDir();if(d){outDir=d;$('outPath').textContent=d;}};
 window.splitora.defaultOutDir().then(d=>{outDir=d;$('outPath').textContent=d;});
@@ -786,7 +730,7 @@ function resetAll(){
  document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
  document.querySelector('.preset[data-sec="60"]').classList.add('active');
  $('customSec').value='';
- setMode('auto');
+ setMode('ranges');
 
  // المقاطع المخصصة والسلايدر
  $('rangeRows').innerHTML='';
@@ -805,15 +749,7 @@ function resetAll(){
  prevVideo.removeAttribute('src');prevVideo.load();
  renderTrim();
 
- // الإضافات: نص، fps، ثامنيل
- $('ovText').value='';
- ovStyle='shadow';ovPos='bottom';
- document.querySelectorAll('#styleRow .style-opt').forEach(x=>x.classList.remove('active'));
- document.querySelectorAll('#posRow .pos-opt').forEach(x=>x.classList.remove('active'));
- const defStyle=document.querySelector('[data-style="shadow"]'); if(defStyle)defStyle.classList.add('active');
- const defPos=document.querySelector('[data-pos="bottom"]'); if(defPos)defPos.classList.add('active');
- $('videoTextOverlay').style.display='none';
-
+ // الإضافات: fps، ثامنيل
  fpsVal=0;
  document.querySelectorAll('#fpsRow .fps-opt').forEach(x=>x.classList.remove('active'));
  document.querySelector('#fpsRow .fps-opt[data-fps="0"]').classList.add('active');
@@ -859,12 +795,9 @@ $('goBtn').onclick=async()=>{
  $('resultsCard').classList.remove('show');
  $('pbarFill').style.width='0%';$('pPct').textContent='0%';
  try{
- let overlayPng=null;
- const oc=drawTextCanvas(...outDims());
- if(oc)overlayPng=await window.splitora.saveTempPng(oc.toDataURL('image/png'));
  const res=await window.splitora.split({
  input:filePath,outDir,clipSec,quality,reels,duration:videoDur,
- mode:splitMode,ranges:rangesArr,fps:fpsVal,overlayPng,thumbnail:thumbPath,
+ mode:splitMode,ranges:rangesArr,fps:fpsVal,thumbnail:thumbPath,
  captionsPath,captionsStyle,videoW,videoH
  });
  resultDir=res.dir;

@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; script-src 'self'">
 <title>Splitora</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="editor.css">
 </head>
 <body>
 <div class="app-shell">
@@ -117,8 +118,19 @@
         </div>
 
         <div class="media-surface">
-          <video id="prevVideo" controls playsinline></video>
-          <div class="video-text-overlay" id="videoTextOverlay" style="display:none"></div>
+          <video id="prevVideo" playsinline></video>
+        </div>
+
+        <div class="player-toolbar" aria-label="أدوات تشغيل المعاينة">
+          <div class="player-time tnum"><b id="playerCurrent">00:00.000</b><span>/</span><span id="playerDuration">00:00.000</span></div>
+          <div class="transport-controls">
+            <button type="button" class="transport-btn" id="seekBackBtn" title="رجوع ثانية">−1s</button>
+            <button type="button" class="transport-btn play" id="previewPlayBtn" title="تشغيل أو إيقاف">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m9 6 9 6-9 6V6Z"/></svg>
+            </button>
+            <button type="button" class="transport-btn" id="seekForwardBtn" title="تقديم ثانية">+1s</button>
+          </div>
+          <div class="player-hint" data-i18n="playerHint">المعاينة والتحديد الدقيق للمقاطع</div>
         </div>
 
         <div class="seg-control mode-tabs">
@@ -235,25 +247,6 @@
               <svg class="icon chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
             </summary>
             <div class="advanced-body">
-
-              <div class="extra-block">
-                <div class="field-label">
-                  <svg class="icon" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>
-                  <span data-i18n="xText">نص فوق الفيديو</span>
-                </div>
-                <input type="text" class="text-input" id="ovText" data-i18n-ph="xTextPh" placeholder="اكتبي النص هنا (اختياري)…">
-                <div class="style-row" id="styleRow">
-                  <button class="style-opt active" data-style="shadow" data-i18n="st1">أبيض بظل</button>
-                  <button class="style-opt" data-style="stroke" data-i18n="st2">أصفر بحدود</button>
-                  <button class="style-opt" data-style="bar" data-i18n="st3">شريط داكن</button>
-                  <button class="style-opt" data-style="pill" data-i18n="st4">كبسولة ملونة</button>
-                </div>
-                <div class="pos-row" id="posRow">
-                  <button class="pos-opt" data-pos="top" data-i18n="pTop">أعلى</button>
-                  <button class="pos-opt" data-pos="mid" data-i18n="pMid">وسط</button>
-                  <button class="pos-opt active" data-pos="bottom" data-i18n="pBot">أسفل</button>
-                </div>
-              </div>
 
               <div class="extra-block">
                 <div class="field-label">
@@ -386,5 +379,6 @@
 </div>
 
 <script src="app.js"></script>
+<script src="editor.js"></script>
 </body>
 </html>
