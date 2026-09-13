@@ -188,6 +188,7 @@ drop.addEventListener('drop',async ev=>{
 async function setFile(p){
  try{
  const info=await window.splitora.probe(p);
+ if(typeof clearCaptionPreview==='function'){captionsPath=null;clearCaptionPreview();$('captionFileName').textContent=t('captionNone');$('captionClear').style.display='none';}
  filePath=p;videoDur=info.duration;videoFps=info.fps||30;videoW=info.width||0;videoH=info.height||0;
  $('fiName').textContent=info.name;
  $('fiDur').textContent=fmtTime(info.duration);
@@ -424,6 +425,7 @@ function renderSegmentOverlay(){
  const width=Math.max(0,Math.min(100-left,((b-a)/trimDur)*100));
  const seg=document.createElement('div');
  seg.className='seg-pill';
+ seg.dataset.rowIndex=i;
  seg.style.left=left+'%';
  seg.style.width=width+'%';
  seg.style.background=color;
@@ -598,7 +600,7 @@ prevVideo.addEventListener('timeupdate',()=>{
  const track=$('filmstrip'),ph=$('filmstripPlayhead');
  const percent=Math.min(1,Math.max(0,prevVideo.currentTime/trimDur));
  ph.style.left=(percent*100)+'%';
- if(zoomLevel>1&&!segmentResizeActive){
+ if(zoomLevel>1&&!segmentResizeActive&&!$('filmstrip').classList.contains('scrubbing')){
  const scroller=$('filmstripScroll');
  const playheadPx=percent*track.clientWidth;
  const viewLeft=scroller.scrollLeft,viewRight=viewLeft+scroller.clientWidth;
@@ -624,7 +626,7 @@ function setZoom(z){
 $('filmstripScroll').addEventListener('wheel',(ev)=>{
  if(!trimDur)return;
  ev.preventDefault();
- if(segmentResizeActive)return;
+ if(segmentResizeActive||$('filmstrip').classList.contains('scrubbing'))return;
  const raw=-ev.deltaY*0.01;
  const delta=Math.max(-0.5,Math.min(0.5,raw)); // خطوات صغيرة = زوم سلس مهما كان نوع الماوس
  setZoom(zoomLevel+delta);
@@ -836,6 +838,7 @@ function resetAll(){
  document.querySelector('.opt[data-q="copy"]').classList.add('active');
  reels=false;
  $('reelsSwitch').setAttribute('aria-checked','false');
+ if(window.captionStudio)window.captionStudio.resetSettings();
 
  $('errBox').classList.remove('show');
  updateEstimate();
@@ -860,7 +863,8 @@ $('goBtn').onclick=async()=>{
  const res=await window.splitora.split({
  input:filePath,outDir,clipSec,quality,reels,duration:videoDur,
  mode:splitMode,ranges:rangesArr,fps:fpsVal,thumbnail:thumbPath,
- captionsPath,captionsStyle,videoW,videoH
+ captionsPath,captionsStyle,videoW,videoH,
+ captionCues:window.captionStudio?.getCues(),captionSettings:window.captionStudio?.getSettings()
  });
  resultDir=res.dir;
  $('progressCard').classList.remove('show');
