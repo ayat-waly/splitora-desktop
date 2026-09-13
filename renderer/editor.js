@@ -14,7 +14,7 @@ inspector.append(exportFooter);
 mainColumn.append($('trimmer'));
 const timelineTools=document.createElement('div');
 timelineTools.className='timeline-tools';
-timelineTools.innerHTML='<span data-i18n="timelineTitle"></span><span class="timeline-shortcuts">Space · I · O · ← →</span><button id="zoomOut" type="button" aria-label="Zoom out">−</button><output id="zoomValue">1×</output><button id="zoomIn" type="button" aria-label="Zoom in">+</button>';
+timelineTools.innerHTML='<span data-i18n="timelineTitle"></span>';
 $('trimmer').prepend(timelineTools);
 const selection=document.createElement('div');
 selection.id='trimSelection';
@@ -68,8 +68,6 @@ frameBack.onclick=()=>seekBy(-1/videoFps);
 frameForward.onclick=()=>seekBy(1/videoFps);
 scrubber.oninput=()=>{if(prevVideo.readyState>=1)prevVideo.currentTime=trimDur*(+scrubber.value/1000);};
 prevVideo.addEventListener('timeupdate',()=>{scrubber.value=trimDur?String(prevVideo.currentTime/trimDur*1000):'0';});
-$('zoomIn').onclick=()=>{setZoom(zoomLevel+1);$('zoomValue').value=zoomLevel.toFixed(1)+'×';};
-$('zoomOut').onclick=()=>{setZoom(zoomLevel-1);$('zoomValue').value=zoomLevel.toFixed(1)+'×';};
 function selectClip(row){
  document.querySelectorAll('.range-row').forEach(r=>r.classList.toggle('selected',r===row));
  const start=parseTime(row.querySelector('.r-from').value),end=parseTime(row.querySelector('.r-to').value);
@@ -168,6 +166,8 @@ for(const [key,nodes] of [
  button.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const i=panes.findIndex(p=>p.button===button);const next=e.key==='Home'?0:e.key==='End'?panes.length-1:(i+(e.key==='ArrowRight'?1:-1)+panes.length)%panes.length;panes[next].button.click();panes[next].button.focus();};
 }
 settings.remove();inspector.prepend(inspectorNav);panes[0].button.click();
+Object.assign(I18N.ar,{trimHint:'اسحبي طرفَي المقطع لتغيير مدته • عجلة الماوس لتكبير وتصغير الخط الزمني',clipsHelp:'حددي البداية والنهاية أسفل المعاينة. لتعديل المدة اسحبي طرفَي المقطع الملوّن أو عدّلي توقيته هنا.'});
+Object.assign(I18N.en,{trimHint:'Drag clip edges to resize • Mouse wheel to zoom the timeline',clipsHelp:'Mark start and end below the preview. Resize by dragging the colored clip edges or editing its times here.'});
 const clipHelp=document.createElement('p');clipHelp.className='inspector-help';clipHelp.dataset.i18n='clipsHelp';$('panelRanges').prepend(clipHelp);
 const outputHelp=document.createElement('p');outputHelp.className='inspector-help';outputHelp.dataset.i18n='outputHelp';$('inspectorOutput').prepend(outputHelp);
 // Keep one compact add control for explicit time entry; avoid duplicate actions and long instructions.

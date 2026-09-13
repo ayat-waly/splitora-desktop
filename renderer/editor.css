@@ -30,6 +30,12 @@ html[dir=rtl] .col-inspector,html[dir=rtl] .file-strip,html[dir=rtl] .trim-summa
 .segments-strip{position:absolute;inset:0;height:100%;margin:0;border:0;background:transparent;border-radius:0;direction:ltr;pointer-events:none;z-index:3}
 .segments-strip .seg-pill{pointer-events:auto;cursor:pointer;opacity:.48;border:2px solid rgba(255,255,255,.8);align-items:flex-start;padding-top:4px;font-size:13px;text-shadow:0 1px 3px #000;transition:opacity .15s}
 .segments-strip .seg-pill:hover{opacity:.75}
+.segments-strip .seg-pill{overflow:visible;touch-action:none;user-select:none}
+.segment-handle{position:absolute;top:0;bottom:0;width:10px;padding:0;border:0;border-radius:3px;background:#e9f6ff;cursor:ew-resize;touch-action:none;z-index:6;opacity:.85}
+.segment-handle.start{left:-4px}.segment-handle.end{right:-4px}
+.segment-handle::after{content:'';position:absolute;top:35%;bottom:35%;left:4px;width:2px;background:#163250;border-radius:2px}
+.segment-handle:focus-visible{outline:2px solid var(--focus-ring);outline-offset:3px}
+.resizing-segment,.resizing-segment *{cursor:ew-resize!important}.resizing-segment .seg-pill{opacity:.75}
 .mark-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:0;background:var(--chrome);direction:ltr!important}
 .mark-btn{padding:8px 24px;font-size:13px;white-space:nowrap;flex:initial;border-radius:9px;border:1px solid var(--border-strong);background:var(--elevated);min-width:145px;height:36px}
 .mark-btn.start{border-color:#22b5c7}.mark-btn.end{border-color:#9473e8}.mark-btn.end .dot{background:#9473e8}.mark-row.awaiting-end .end{box-shadow:0 0 0 2px #9473e833;background:var(--accent-soft)}
