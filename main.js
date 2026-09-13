@@ -141,6 +141,13 @@ function readableCaptionCues(cues) {
 function writeSrt(cues) {
   return cues.map((c, i) => `${i + 1}\n${secToSrtTime(c.start)} --> ${secToSrtTime(c.end)}\n${c.text}\n`).join('\n');
 }
+ipcMain.handle('save-captions',async(_e,cues)=>{
+  const validated=require('./renderer/caption-model').validate(cues);
+  const result=await dialog.showSaveDialog(win,{title:'Save subtitles / حفظ الترجمة',defaultPath:'Splitora-captions.srt',filters:[{name:'SubRip subtitles',extensions:['srt']}]});
+  if(result.canceled||!result.filePath)return null;
+  await fs.promises.writeFile(result.filePath,writeSrt(validated),'utf8');
+  return result.filePath;
+});
 /** يرجع مسار ملف SRT جديد بتوقيتات منزاحة لمقطع معين (لوضع المقاطع المخصصة) */
 function shiftSrtForClip(srtPath, clipStart, clipLen, tmpDir) {
   const cues = parseSrt(fs.readFileSync(srtPath, 'utf8'));
@@ -292,18 +299,20 @@ ipcMain.handle('split', async (_e, opts) => {
   if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
   const watermarkPath = licStatus.watermark ? unpacked(path.join(__dirname, 'build', 'icon.png')) : null;
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
-  const hasCaptions = !!(captionsPath && fs.existsSync(captionsPath));
+  const captionModel=require('./renderer/caption-model');
+  const editedCues=opts.captionCues==null?null:captionModel.validate(opts.captionCues);
+  const hasCaptions = editedCues!==null?editedCues.length>0:!!(captionsPath && fs.existsSync(captionsPath));
+  const exportCues=hasCaptions?(editedCues||parseSrt(fs.readFileSync(captionsPath,'utf8'))):[];
 
-  const capForceStyle = hasCaptions ? captionForceStyle(captionsStyle,reels?9/16:(videoW&&videoH?videoW/videoH:16/9)) : '';
   const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
   if (capsTmpDir) fs.mkdirSync(capsTmpDir, { recursive: true });
 
   // دالة بتاخد مسار SRT للمقطع الحالي (بدون إزاحة للأوتوماتيك، بإزاحة للمقاطع المخصصة)
-  function captionsFilterFor(srtPathForThisClip) {
-    if (!srtPathForThisClip) return null;
-    const readablePath=path.join(capsTmpDir,'readable_'+Math.random().toString(36).slice(2)+'.srt');
-    fs.writeFileSync(readablePath,writeSrt(parseSrt(fs.readFileSync(srtPathForThisClip,'utf8'))),'utf8');
-    return `subtitles=filename=${ffFilterPath(readablePath)}:force_style='${capForceStyle}'`;
+  function captionsFilterFor(start=0,length=Infinity) {
+    const readablePath=path.join(capsTmpDir,'styled_'+Math.random().toString(36).slice(2)+'.ass');
+    const settings=opts.captionSettings||{preset:captionsStyle};
+    fs.writeFileSync(readablePath,captionModel.ass(captionModel.clip(exportCues,start,length),settings,reels?9/16:(videoW&&videoH?videoW/videoH:16/9)),'utf8');
+    return `ass=filename=${ffFilterPath(readablePath)}`;
   }
 
   // dedicated subfolder per job: <video name>_parts, deduped
@@ -398,8 +407,7 @@ ipcMain.handle('split', async (_e, opts) => {
       args.push('-t', String(len));
       let capFilterStr = null;
       if (hasCaptions) {
-        const shiftedSrt = shiftSrtForClip(captionsPath, r.start, len, capsTmpDir);
-        capFilterStr = captionsFilterFor(shiftedSrt);
+        capFilterStr = captionsFilterFor(r.start,len);
       }
       if (needsEncode) { args.push(...filterArgs(capFilterStr), ...codecArgs); }
       else { args.push('-c', 'copy', '-avoid_negative_ts', 'make_zero'); }
@@ -411,7 +419,7 @@ ipcMain.handle('split', async (_e, opts) => {
     const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
     const args = ['-hide_banner', '-y', '-i', input];
     for (const ov of overlayInputs()) args.push('-i', ov);
-    const capFilterStr = hasCaptions ? captionsFilterFor(captionsPath) : null; // بدون إزاحة — التوقيت مطلق على طول الفيديو الأصلي
+    const capFilterStr = hasCaptions ? captionsFilterFor() : null;
     if (needsEncode) {
       args.push(...filterArgs(capFilterStr), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
     } else {

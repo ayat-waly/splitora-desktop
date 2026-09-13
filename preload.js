@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('splitora', {
   genWaveform: (input, points) => ipcRenderer.invoke('gen-waveform', { input, points }),
   pickSrt: () => ipcRenderer.invoke('pick-srt'),
   readCaptions: (file) => ipcRenderer.invoke('read-captions', file),
+  saveCaptions: (cues) => ipcRenderer.invoke('save-captions', cues),
   pickOutDir: () => ipcRenderer.invoke('pick-outdir'),
   defaultOutDir: () => ipcRenderer.invoke('default-outdir'),
   split: (opts) => ipcRenderer.invoke('split', opts),
