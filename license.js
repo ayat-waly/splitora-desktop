@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const subscriptions = require('./subscription-client');
 
 const TRIAL_DAYS = 7;
 
@@ -79,7 +80,9 @@ function writeTrialStart(ts) {
 }
 
 /** يرجع حالة الترخيص الحالية: licensed / trial / locked */
-function getStatus() {
+async function getStatus() {
+  const online = await subscriptions.status();
+  if (online) return online;
   const lic = loadStoredLicense();
   if (lic) {
     return { mode: 'licensed', plan: lic.plan, watermark: false, daysLeft: null, expiresAt: lic.exp };
@@ -100,7 +103,9 @@ function getStatus() {
 }
 
 /** يفعّل مفتاح جديد بعد التحقق من صحته */
-function activate(keyStr) {
+async function activate(keyStr) {
+  keyStr = String(keyStr || '').trim();
+  if (keyStr.startsWith('SP2-')) return subscriptions.activate(keyStr);
   const res = verifyKey(keyStr);
   if (!res.valid) return { ok: false, reason: res.reason };
   try {
@@ -114,6 +119,7 @@ function activate(keyStr) {
 
 function init(userDataPath) {
   module.exports._userDataDir = userDataPath;
+  subscriptions.init(userDataPath);
 }
 
 module.exports = { init, getStatus, activate, verifyKey, TRIAL_DAYS };

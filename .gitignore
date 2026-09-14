@@ -9,3 +9,8 @@ scripts/*.pem
 
 # بيانات العملاء المحلية (خصوصية)
 scripts/data/
+
+# Online licensing secrets and local Cloudflare state
+.dev.vars*
+.wrangler/
+subscriptions/secrets/

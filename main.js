@@ -295,7 +295,7 @@ ipcMain.handle('split', async (_e, opts) => {
           captionsPath, captionsStyle, videoW, videoH } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
 
-  const licStatus = license.getStatus();
+  const licStatus = await license.getStatus();
   if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
   const watermarkPath = licStatus.watermark ? unpacked(path.join(__dirname, 'build', 'icon.png')) : null;
   const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
