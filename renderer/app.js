@@ -941,7 +941,12 @@ $('licActivateBtn').onclick=async()=>{
  await refreshLicenseUI();
  showErr(t('licSuccess'));
  }else{
- const map={format:t('licErrFormat'),malformed:t('licErrFormat'),signature:t('licErrSig'),expired:t('licErrExpired')};
+ const map={format:t('licErrFormat'),malformed:t('licErrFormat'),signature:t('licErrSig'),expired:t('licErrExpired'),
+ NOT_CONFIGURED:'Online subscriptions are not configured yet / الاشتراكات أونلاين غير مفعلة بعد',
+ NETWORK:'Connect to the internet and try again / اتصلي بالإنترنت وحاولي مرة أخرى',
+ DEVICE_LIMIT:'Device limit reached / تم الوصول للحد الأقصى للأجهزة',
+ SUSPENDED:'Subscription suspended / الاشتراك موقوف',EXPIRED:t('licErrExpired'),
+ INVALID_KEY:t('licErrFormat'),INACTIVE:'Subscription inactive / الاشتراك غير نشط'};
  $('licErr').textContent=map[res.reason]||t('licErrFormat');
  $('licErr').classList.add('show');
  }
