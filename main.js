@@ -112,7 +112,10 @@ function parseSrt(text) {
     const textLines = lines.slice(lines.indexOf(timeLine) + 1);
     if (textLines.length) cues.push({ start, end, text: textLines.join('\n') });
   }
-  return readableCaptionCues(cues);
+  // Preserve source timings; never invent new cue boundaries from text length.
+  return cues.filter(c => Number.isFinite(c.start) && Number.isFinite(c.end) && c.start >= 0 && c.end > c.start)
+    .map(c => ({...c, text: c.text.replace(/<[^>]*>/g, '').replace(/\{[^}]*\}/g, '').trim()}))
+    .filter(c => c.text).sort((a,b) => a.start-b.start);
 }
 // Old Whisper files may contain an entire paragraph in one cue. Paginate before
 // clipping so preview, manual cuts and automatic cuts all share the same timing.
@@ -697,7 +700,7 @@ let currentWhisperJob = null;
 ipcMain.handle('whisper-transcribe', async (_e, opts) => {
   const { input, model, language } = opts; // language: 'auto' | 'ar' | 'en' | ...
   if (!WHISPER) throw new Error('E_NO_WHISPER');
-  const modelPath = whisperModelPath(model || 'base');
+  const modelPath = whisperModelPath(model || 'small');
   if (!modelPath || !fs.existsSync(modelPath)) throw new Error('E_NO_MODEL');
   if (!fs.existsSync(input)) throw new Error('input not found');
 
@@ -711,7 +714,9 @@ ipcMain.handle('whisper-transcribe', async (_e, opts) => {
     await run(FFMPEG, ['-hide_banner', '-y', '-i', input, '-vn', '-ac', '1', '-ar', '16000', wavPath]);
 
     await new Promise((resolve, reject) => {
-      const args = ['-m', modelPath, '-f', wavPath, '-osrt', '-of', outBase, '-l', language || 'auto', '-ml', '42', '-sow', '-nt'];
+      // Multilingual transcription, NOT translation. Keep timestamp decoding
+      // enabled: -nt disables it in whisper.cpp (not just console output).
+      const args = ['-m', modelPath, '-f', wavPath, '-osrt', '-of', outBase, '-l', language || 'auto', '-ml', '42', '-sow', '-bs', '5'];
       const p = spawn(WHISPER, args, { windowsHide: true });
       currentWhisperJob = p;
       let err = '';
@@ -731,6 +736,7 @@ ipcMain.handle('whisper-transcribe', async (_e, opts) => {
 
     const srtOut = outBase + '.srt';
     if (!fs.existsSync(srtOut)) throw new Error('E_NO_OUTPUT');
+    if (!parseSrt(fs.readFileSync(srtOut, 'utf8')).length) throw new Error('E_NO_OUTPUT');
     // ننقلها لملف دائم بره الـ tmp عشان تفضل موجودة وقابلة للتعديل بعد ما نمسح المجلد المؤقت
     const finalDir = path.join(app.getPath('userData'), 'whisper-out');
     fs.mkdirSync(finalDir, { recursive: true });
