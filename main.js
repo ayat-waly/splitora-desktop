@@ -533,9 +533,15 @@ ipcMain.handle('url-info', async (_e, url) => {
   } catch (e) { throw new Error(mapYtdlpError(String(e.message || e))); }
 });
 
+ipcMain.handle('url-download-directory', () => path.join(app.getPath('downloads'), 'Splitora'));
+ipcMain.handle('open-downloads', () => {
+  const dir = path.join(app.getPath('downloads'), 'Splitora');
+  fs.mkdirSync(dir, { recursive: true });
+  return shell.openPath(dir);
+});
 ipcMain.handle('url-download', async (_e, url) => {
   if (!YTDLP) throw new Error('E_NO_YTDLP');
-  const dir = path.join(app.getPath('userData'), 'downloads');
+  const dir = path.join(app.getPath('downloads'), 'Splitora');
   fs.mkdirSync(dir, { recursive: true });
   const args = ['--no-playlist', '--newline', '--no-warnings', '--no-quiet', '--restrict-filenames',
     '-f', 'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b',

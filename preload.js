@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('splitora', {
   pickImage: () => ipcRenderer.invoke('pick-image'),
   urlInfo: (url) => ipcRenderer.invoke('url-info', url),
   urlDownload: (url) => ipcRenderer.invoke('url-download', url),
+  urlDownloadDirectory: () => ipcRenderer.invoke('url-download-directory'),
+  openDownloads: () => ipcRenderer.invoke('open-downloads'),
   cancelDownload: () => ipcRenderer.invoke('cancel-download'),
   licenseStatus: () => ipcRenderer.invoke('license-status'),
   licenseActivate: (key) => ipcRenderer.invoke('license-activate', key),
