@@ -218,6 +218,15 @@ function setTab(local){
 }
 
 /* from URL (yt-dlp) */
+Object.assign(I18N.ar,{urlSaveLocation:'مكان حفظ الفيديوهات:'});
+Object.assign(I18N.en,{urlSaveLocation:'Videos saved to:'});
+window.splitora.urlDownloadDirectory().then(dir=>{
+ $('urlSavePath').textContent=dir;
+}).catch(()=>{});
+$('urlOpenDownloads').onclick=async()=>{
+ try{const error=await window.splitora.openDownloads();if(error)showErr(error);}
+ catch(e){showErr(String(e.message||e));}
+};
 window.splitora.onUrlProgress(r=>{
  const pc=Math.round(r*100);
  $('urlBar').style.width=pc+'%';$('urlPct').textContent=pc+'%';
@@ -482,14 +491,30 @@ function fmtPlayerTime(value){
  const sec=Math.max(0,Number(value)||0),m=Math.floor(sec/60),s=sec-m*60;
  return String(m).padStart(2,'0')+':'+s.toFixed(3).padStart(6,'0');
 }
+let lastPlayerPaused=null;
 function syncPlayerToolbar(){
  $('playerCurrent').textContent=fmtPlayerTime(prevVideo.currentTime);
  $('playerDuration').textContent=fmtPlayerTime(prevVideo.duration||trimDur);
+ if(lastPlayerPaused===prevVideo.paused)return;
+ lastPlayerPaused=prevVideo.paused;
  $('previewPlayBtn').innerHTML=prevVideo.paused
   ?'<svg class="icon" viewBox="0 0 24 24"><path d="m9 6 9 6-9 6V6Z"/></svg>'
   :'<svg class="icon" viewBox="0 0 24 24"><path d="M8 6h3v12H8zM14 6h3v12h-3z"/></svg>';
 }
-$('previewPlayBtn').onclick=async()=>{if(prevVideo.readyState<1)return;try{if(prevVideo.paused)await prevVideo.play();else prevVideo.pause();}catch(e){showErr(String(e.message||e));}};
+let playbackWanted=false,playbackRequest=0;
+async function setPlayback(playing){
+ const request=++playbackRequest;playbackWanted=playing;
+ if(!playing){prevVideo.pause();syncPlayerToolbar();return;}
+ if(!prevVideo.getAttribute('src')){playbackWanted=false;return;}
+ if(prevVideo.ended)prevVideo.currentTime=0;
+ try{await prevVideo.play();}
+ catch(e){if(request===playbackRequest){playbackWanted=false;if(e.name!=='AbortError')showErr(String(e.message||e));}}
+ if(request===playbackRequest)syncPlayerToolbar();
+}
+$('previewPlayBtn').onclick=()=>setPlayback(!(playbackWanted||!prevVideo.paused));
+prevVideo.addEventListener('pause',()=>{playbackWanted=false;});
+prevVideo.addEventListener('ended',()=>{playbackWanted=false;syncPlayerToolbar();});
+prevVideo.addEventListener('emptied',()=>{playbackWanted=false;playbackRequest++;syncPlayerToolbar();});
 $('seekBackBtn').onclick=()=>{prevVideo.currentTime=Math.max(0,prevVideo.currentTime-1);};
 $('seekForwardBtn').onclick=()=>{prevVideo.currentTime=Math.min(prevVideo.duration||trimDur,prevVideo.currentTime+1);};
 prevVideo.addEventListener('play',syncPlayerToolbar);
@@ -595,6 +620,7 @@ markEndBtn.onclick=()=>{
  renderTrim();
 };
 prevVideo.addEventListener('timeupdate',()=>{
+ if($('filmstrip').classList.contains('scrubbing'))return;
  syncPlayerToolbar();
  if(trimDur>0){
  const track=$('filmstrip'),ph=$('filmstripPlayhead');

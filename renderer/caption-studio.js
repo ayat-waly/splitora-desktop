@@ -105,7 +105,21 @@
 (()=>{
  const track=$('filmstrip'),head=$('filmstripPlayhead');let active=null,wasPlaying=false;
  head.setAttribute('role','slider');head.tabIndex=0;head.setAttribute('aria-label','Playhead / مؤشر التشغيل');head.setAttribute('aria-valuemin','0');
- function seek(e){const r=track.getBoundingClientRect();prevVideo.currentTime=Math.max(0,Math.min(trimDur,(e.clientX-r.left)/r.width*trimDur));}
+ let targetTime=0,seekFrame=0,lastSeek=0;
+ function flushSeek(){
+  seekFrame=0;
+  if(active===null)return;
+  if(prevVideo.seeking||performance.now()-lastSeek<60){seekFrame=requestAnimationFrame(flushSeek);return;}
+  lastSeek=performance.now();prevVideo.currentTime=targetTime;
+ }
+ function seek(e){
+  const r=track.getBoundingClientRect();
+  targetTime=Math.max(0,Math.min(trimDur,(e.clientX-r.left)/r.width*trimDur));
+  head.style.left=(targetTime/trimDur*100)+'%';
+  head.setAttribute('aria-valuenow',String(targetTime));
+  $('playerCurrent').textContent=fmtPlayerTime(targetTime);
+  if(!seekFrame)seekFrame=requestAnimationFrame(flushSeek);
+ }
  track.addEventListener('pointerdown',e=>{
   if(e.button!==0||!trimDur||e.target.closest('.segment-handle'))return;
   e.preventDefault();active=e.pointerId;wasPlaying=!prevVideo.paused;prevVideo.pause();
@@ -113,7 +127,15 @@
   track.setPointerCapture(active);track.classList.add('scrubbing');seek(e);
  });
  track.addEventListener('pointermove',e=>{if(e.pointerId===active)seek(e);});
- function stop(e){if(e.pointerId!==active)return;active=null;track.classList.remove('scrubbing');segmentClickBlockedUntil=performance.now()+300;if(track.hasPointerCapture(e.pointerId))track.releasePointerCapture(e.pointerId);if(wasPlaying&&e.type==='pointerup')prevVideo.play().catch(()=>{});}
+ function stop(e){
+  if(e.pointerId!==active)return;
+  if(e.type==='pointerup')seek(e);
+  active=null;cancelAnimationFrame(seekFrame);seekFrame=0;
+  prevVideo.currentTime=targetTime;
+  track.classList.remove('scrubbing');segmentClickBlockedUntil=performance.now()+300;
+  if(track.hasPointerCapture(e.pointerId))track.releasePointerCapture(e.pointerId);
+  if(wasPlaying&&e.type==='pointerup')setPlayback(true);
+ }
  track.addEventListener('pointerup',stop);track.addEventListener('pointercancel',stop);track.addEventListener('lostpointercapture',stop);
  head.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(e.key==='Home')prevVideo.currentTime=0;else if(e.key==='End')prevVideo.currentTime=trimDur;else seekBy((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?1:1/videoFps));};
  prevVideo.addEventListener('timeupdate',()=>{head.setAttribute('aria-valuemax',String(trimDur));head.setAttribute('aria-valuenow',String(prevVideo.currentTime));});
