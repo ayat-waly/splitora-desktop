@@ -193,7 +193,11 @@ async function setFile(p){
  $('fiName').textContent=info.name;
  $('fiDur').textContent=fmtTime(info.duration);
  $('fiSize').textContent=fmtSize(info.size);
- $('fiRes').textContent=info.width+'×'+info.height;
+ const audioOnly=!videoW||!videoH;
+ document.body.classList.toggle('audio-only',audioOnly);
+ $('fiRes').textContent=audioOnly?'Audio · M4A 192 kbps':info.width+'×'+info.height;
+ for(const el of document.querySelectorAll('#qualityOpts button,#fpsRow button,#reelsSwitch,#thumbBtn,#thumbClear'))el.disabled=audioOnly;
+ if(audioOnly){reels=false;$('reelsSwitch').classList.remove('on');$('reelsSwitch').setAttribute('aria-checked','false');}
  $('fileInfo').classList.add('show');
  document.body.classList.add('has-file');
  setStage('edit');
@@ -541,7 +545,7 @@ async function loadFilmstrip(path,duration){
  loading.style.display='flex';
  clearWaveform();
  try{
- const frames=await window.splitora.genThumbstrip(path,duration,14);
+ const frames=videoW&&videoH?await window.splitora.genThumbstrip(path,duration,14):[];
  if(myId!==filmstripLoadId)return; // المستخدم رفعت فيديو تاني قبل ما نخلص
  if(frames&&frames.length){
  frames.forEach(src=>{

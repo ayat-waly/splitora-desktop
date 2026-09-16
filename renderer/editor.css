@@ -140,3 +140,9 @@ video[data-caption-style=pill]::cue{background:#2f7cf6;text-shadow:none}
 .filmstrip-playhead::before{content:'';position:absolute;left:-6px;top:0;width:15px;height:12px;background:#29c6e4;clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%)}
 .filmstrip-playhead::after{content:'';position:absolute;left:-7px;top:0;bottom:0;width:17px}
 .filmstrip-playhead:focus-visible{outline:2px solid white}
+.audio-only .media-surface{background:radial-gradient(ellipse at center,#183b55,#0c1528)}
+.audio-only .media-surface::before{content:'♫  Audio · M4A';position:absolute;top:25%;left:0;right:0;text-align:center;color:#5dd8e8;font:600 28px Arial;pointer-events:none}
+.audio-only #qualityOpts,.audio-only #fpsRow{opacity:.45}
+#captionStudio .cs-presets button{min-height:104px;border-radius:12px;background:linear-gradient(145deg,#20233b,#111827);gap:18px}
+#captionStudio .cs-sample{font-size:21px;line-height:1.4}
+#csLookPanel>button{width:100%;margin-top:8px;padding:10px;border-radius:8px}

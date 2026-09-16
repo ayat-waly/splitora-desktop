@@ -2,6 +2,8 @@
 (()=>{
  let cues=null,style=CaptionModel.options(),page=0,history=[],future=[],invalid=new Set(),request=0;
  const PAGE_SIZE=8;
+ Object.assign(I18N.ar,{csPresetimpact:'بارز · لون مزدوج',csPreseteditorial:'تحريري · وردي',csPresetlime:'تمييز ليموني',csPresetamber:'تمييز كهرماني',csPresetfire:'ناري',csPresetcinema:'سينمائي',csPresetice:'ثلجي',csPresetviolet:'بنفسجي',csImportFont:'رفع خط TTF / OTF'});
+ Object.assign(I18N.en,{csPresetimpact:'Impact · Duo',csPreseteditorial:'Editorial',csPresetlime:'Lime highlight',csPresetamber:'Amber highlight',csPresetfire:'Fire',csPresetcinema:'Cinema',csPresetice:'Ice',csPresetviolet:'Violet',csImportFont:'Import TTF / OTF font'});
  Object.assign(I18N.ar,{csText:'النص والتوقيت',csLook:'الشكل',csFont:'الخط',csSize:'حجم الخط',csPosition:'الموضع الرأسي',csUndo:'تراجع',csRedo:'إعادة',csSave:'حفظ SRT',csAdd:'إضافة سطر عند المؤشر',csEmpty:'اختاري ملف ترجمة أو ولّدي الترجمة لبدء التحرير.',csPrev:'السابق',csNext:'التالي',csInvalid:'راجعي التوقيت: البداية أقل من النهاية وداخل مدة الفيديو.',csSeek:'عرض',csDelete:'حذف',csStart:'البداية بالثواني',csEnd:'النهاية بالثواني',csCaption:'نص الترجمة',csSaved:'تم حفظ ملف الترجمة',csHelp:'التعديل يظهر في المعاينة ويُطبّق عند التصدير. موضع 10% أعلى الفيديو و90% أسفله.',csPresetbold:'كلاسيكي',csPresetbar:'شريط داكن',csPresetpill:'أزرق',csPresetgold:'ذهبي',csPresetmint:'نعناعي',csPresetclean:'بسيط'});
  Object.assign(I18N.en,{csText:'Text & timing',csLook:'Appearance',csFont:'Font',csSize:'Font size',csPosition:'Vertical position',csUndo:'Undo',csRedo:'Redo',csSave:'Save SRT',csAdd:'Add cue at playhead',csEmpty:'Import or generate captions to start editing.',csPrev:'Previous',csNext:'Next',csInvalid:'Check timing: start must precede end and stay within the video.',csSeek:'Preview',csDelete:'Delete',csStart:'Start in seconds',csEnd:'End in seconds',csCaption:'Caption text',csSaved:'Subtitle file saved',csHelp:'Edits appear in preview and exports. Position 10% is near the top; 90% is near the bottom.',csPresetbold:'Classic',csPresetbar:'Dark bar',csPresetpill:'Blue',csPresetgold:'Gold',csPresetmint:'Mint',csPresetclean:'Minimal'});
  const studio=document.createElement('div');studio.id='captionStudio';
@@ -11,6 +13,14 @@
  <section id="csTextPanel" role="tabpanel" aria-labelledby="csTextTab"><div id="csCueList"></div><div class="cs-pages"><button id="csPrev" data-i18n="csPrev"></button><output id="csPage"></output><button id="csNext" data-i18n="csNext"></button></div><button id="csAdd" class="cs-add" data-i18n="csAdd"></button></section>
  <section id="csLookPanel" role="tabpanel" aria-labelledby="csLookTab" hidden><div class="cs-presets" id="csPresets"></div><label for="csFont" data-i18n="csFont"></label><select id="csFont"></select><label for="csSize"><span data-i18n="csSize"></span><output id="csSizeValue"></output></label><input id="csSize" type="range" min="2" max="8" step=".25"><label for="csPosition"><span data-i18n="csPosition"></span><output id="csPositionValue"></output></label><input id="csPosition" type="range" min="10" max="90" step="1"><p class="inspector-help" data-i18n="csHelp"></p></section>`;
  captionPanel.append(studio);
+ const importFont=document.createElement('button');importFont.type='button';importFont.dataset.i18n='csImportFont';$('csFont').after(importFont);
+ async function installFont(font){
+  const bytes=Uint8Array.from(atob(font.data),c=>c.charCodeAt(0));
+  const face=await new FontFace(font.family,bytes).load();document.fonts.add(face);CaptionModel.registerFont(font.family);
+  if(!Array.from($('csFont').options).some(o=>o.value===font.family)){const option=document.createElement('option');option.value=font.family;option.textContent=font.label;$('csFont').append(option);}
+ }
+ importFont.onclick=async()=>{importFont.disabled=true;try{const font=await window.splitora.importCaptionFont();if(font){await installFont(font);remember();style.font=font.family;syncStyle();}}catch(e){showErr(String(e.message||e));}finally{importFont.disabled=false;}};
+ window.splitora.captionFonts().then(async fonts=>{for(const font of fonts)await installFont(font);syncStyle();}).catch(e=>showErr(String(e.message||e)));
  const source=document.createElement('details');source.className='cs-source';source.open=true;
  const sourceTitle=document.createElement('summary');sourceTitle.dataset.i18n='csSource';
  I18N.ar.csSource='استيراد أو توليد الترجمة';I18N.en.csSource='Import or generate captions';source.append(sourceTitle);
@@ -22,7 +32,7 @@
  for(const font of CaptionModel.fonts){const option=document.createElement('option');option.value=font;option.textContent=font;$('csFont').append(option);}
  for(const [key,preset] of Object.entries(CaptionModel.presets)){
   const button=document.createElement('button');button.type='button';button.dataset.preset=key;
-  const sample=document.createElement('span');sample.className='cs-sample';sample.textContent='Splitora';sample.style.color=preset.color;sample.style.background=preset.background||'transparent';sample.style.fontWeight=preset.weight;
+  const sample=document.createElement('span');sample.className='cs-sample';sample.textContent='Splitora';sample.style.color=preset.accent||preset.color;sample.style.background=preset.highlight||preset.background||'transparent';sample.style.fontWeight=preset.weight;sample.style.textShadow=preset.outline?`0 2px 0 ${preset.outline}, 0 0 3px ${preset.outline}`:'none';
   const label=document.createElement('span');label.dataset.i18n='csPreset'+key;button.append(sample,label);
   button.onclick=()=>{remember();style.preset=key;syncStyle();};$('csPresets').append(button);
  }
@@ -35,7 +45,12 @@
  let scrubTime=null,frameHandle=null;
  function draw(at){
   const time=typeof at==='number'?at:(scrubTime??prevVideo.currentTime);
-  caption.textContent=(cues||[]).filter(c=>c.start<=time&&c.end>time).map(c=>c.text).join('\n');
+  const text=(cues||[]).filter(c=>c.start<=time&&c.end>time).map(c=>c.text).join('\n');
+  const signature=style.preset+'\0'+text;
+  if(caption.dataset.signature!==signature){
+   caption.dataset.signature=signature;caption.replaceChildren();const p=CaptionModel.presets[style.preset];
+   for(const run of CaptionModel.runs(text,style.preset)){caption.append(document.createTextNode(run.separator));const span=document.createElement('span');span.textContent=run.text;if(run.accent){span.style.color=p.accent;if(p.highlight){span.style.background=p.highlight;span.style.borderRadius='.12em';span.style.padding='0 .08em';span.style.webkitTextStroke='0';}}caption.append(span);}
+  }
   layer.hidden=!caption.textContent;
   studio.querySelectorAll('.cs-cue').forEach(row=>{const c=cues?.[+row.dataset.index];row.classList.toggle('active',!!c&&c.start<=time&&c.end>time);});
  }
@@ -49,7 +64,8 @@
   const rect=prevVideo.getBoundingClientRect(),vw=reels?9:(videoW||16),vh=reels?16:(videoH||9),scale=Math.min(rect.width/vw,rect.height/vh);
   const w=vw*scale,h=vh*scale,fontSize=Math.min(w,h)*style.size/100;
   layer.style.width=w+'px';layer.style.height=h+'px';
-  caption.style.cssText=`top:${style.position}%;font-family:"${style.font}";font-size:${fontSize}px;font-weight:${p.weight};color:${p.color};background:${p.background||'transparent'};padding:${p.background?'.18em .25em':'0'};text-shadow:${p.outline?'0 1px 2px '+p.outline:'none'};-webkit-text-stroke:${p.outline?fontSize*.025:0}px ${p.outline||'transparent'};`;
+  caption.style.cssText=`top:${style.position}%;font-size:${fontSize}px;font-weight:${p.weight};color:${p.color};background:${p.background||'transparent'};padding:${p.background?'.18em .25em':'0'};text-shadow:${p.outline?`0 ${fontSize*(p.shadow||.025)}px 2px ${p.outline}`:'none'};-webkit-text-stroke:${p.outline?fontSize*(p.stroke||.055):0}px ${p.outline||'transparent'};paint-order:stroke fill;`;
+  caption.style.fontFamily=JSON.stringify(style.font);
   draw();status();
  }
  function renderList(){
@@ -140,6 +156,8 @@
   captionPreviewHelp:'Transcribes speech in its original language, without translation. Text follows the playhead during scrubbing and playback.',
   captionTimingNote:'Regenerate transcripts made with older versions; their timing cannot be repaired automatically. Imported SRT timings are preserved. Accuracy depends on audio clarity and language; review before export.'
  });
+ Object.assign(I18N.ar,{s1:'اختاري فيديو أو صوت',dropT:'اسحبي فيديو أو ملف صوتي هنا أو اضغطي للاختيار',dropS:'MP4 · MOV · MKV · MP3 · WAV · M4A · FLAC · OGG',again:'تقسيم ملف آخر',whisperNeedVideo:'اختاري ملف فيديو أو صوت أولًا.',csEmpty:'افرغي الصوت أو استوردي SRT لتحرير النص والتوقيت. للصوت فقط، احفظي التفريغ كملف SRT منفصل.'});
+ Object.assign(I18N.en,{s1:'Choose video or audio',dropT:'Drop video or audio here, or click to browse',dropS:'MP4 · MOV · MKV · MP3 · WAV · M4A · FLAC · OGG',again:'Split another file',whisperNeedVideo:'Choose video or audio first.',csEmpty:'Transcribe audio or import SRT to edit text and timing. For audio-only files, save the transcript separately as SRT.'});
  renderList();syncStyle();applyLang();
 })();
 
