@@ -755,7 +755,7 @@ $('whisperGoBtn').onclick=async()=>{
  $('whisperCancelBtn').style.display='block';
  $('whisperDl').classList.add('show');
  $('whisperBar').style.width='0%';$('whisperPct').textContent='0%';
- const model=$('whisperModel').value, language=$('whisperLang').value;
+ const model=$('whisperModel').value, language=$('whisperLang').value,sourceFile=filePath,sourceGeneration=filmstripLoadId;
  try{
  const st=whisperStatusCache||await refreshWhisperStatus();
  if(!st.available) throw new Error('E_NO_WHISPER');
@@ -766,7 +766,8 @@ $('whisperGoBtn').onclick=async()=>{
  }
  $('whisperBar').style.width='100%';$('whisperPct').textContent='100%';
  $('whisperStage').textContent=I18N[lang].whisperStageTranscribe;
- const srtPath=await window.splitora.whisperTranscribe(filePath,model,language);
+ const srtPath=await window.splitora.whisperTranscribe(sourceFile,model,language);
+ if(filePath!==sourceFile||filmstripLoadId!==sourceGeneration)return;
  captionsPath=srtPath;
  await loadCaptionPreview(srtPath);
  $('captionFileName').textContent=I18N[lang].whisperDone;

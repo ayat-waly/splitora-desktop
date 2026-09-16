@@ -32,8 +32,9 @@
   $('csUndo').disabled=!history.length;$('csRedo').disabled=!future.length;$('csSave').disabled=!cues?.length||invalid.size>0;
   $('csError').textContent=invalid.size?t('csInvalid'):'';
  }
- function draw(){
-  const time=prevVideo.currentTime;
+ let scrubTime=null,frameHandle=null;
+ function draw(at){
+  const time=typeof at==='number'?at:(scrubTime??prevVideo.currentTime);
   caption.textContent=(cues||[]).filter(c=>c.start<=time&&c.end>time).map(c=>c.text).join('\n');
   layer.hidden=!caption.textContent;
   studio.querySelectorAll('.cs-cue').forEach(row=>{const c=cues?.[+row.dataset.index];row.classList.toggle('active',!!c&&c.start<=time&&c.end>time);});
@@ -81,7 +82,15 @@
  for(const [id,key] of [['csFont','font'],['csSize','size'],['csPosition','position']])$(id).oninput=()=>{remember();style[key]=$(id).value;syncStyle();};
  for(const name of ['Text','Look'])$('cs'+name+'Tab').onclick=()=>{for(const n of ['Text','Look']){$('cs'+n+'Panel').hidden=n!==name;$('cs'+n+'Tab').setAttribute('aria-selected',String(n===name));}};
  function getCues(){if(invalid.size)throw Error(t('csInvalid'));return cues===null?null:CaptionModel.validate(cues);}
- window.captionStudio={getCues,getSettings:()=>({...style}),resetSettings:()=>{style=CaptionModel.options();syncStyle();}};
+ function followPlayhead(){
+  if(invalid.size||studio.contains(document.activeElement))return;
+  const time=scrubTime??prevVideo.currentTime;
+  const index=(cues||[]).findIndex(c=>c.start<=time&&c.end>time);
+  if(index>=0&&Math.floor(index/PAGE_SIZE)!==page){page=Math.floor(index/PAGE_SIZE);renderList();}
+ }
+ window.captionStudio={getCues,getSettings:()=>({...style}),resetSettings:()=>{style=CaptionModel.options();syncStyle();},
+  previewAt:time=>{scrubTime=time;draw(time);},
+  finishSeek:()=>{scrubTime=null;followPlayhead();draw();}};
  loadCaptionPreview=async file=>{
   const version=++request;
   cues=[];invalid.clear();renderList();draw();
@@ -92,12 +101,45 @@
  };
  clearCaptionPreview=()=>{request++;cues=null;history=[];future=[];invalid.clear();source.open=true;if(captionTrack)captionTrack.mode='disabled';renderList();draw();};
  updateCaptionPreviewStyle=syncStyle;
- prevVideo.addEventListener('timeupdate',draw);prevVideo.addEventListener('seeked',draw);prevVideo.addEventListener('loadedmetadata',syncStyle);
+ function stopFrame(){
+  if(frameHandle!==null){if(prevVideo.cancelVideoFrameCallback)prevVideo.cancelVideoFrameCallback(frameHandle);else cancelAnimationFrame(frameHandle);frameHandle=null;}
+ }
+ function nextFrame(){
+  if(prevVideo.paused||prevVideo.ended)return;
+  if(prevVideo.requestVideoFrameCallback)frameHandle=prevVideo.requestVideoFrameCallback((_now,meta)=>{frameHandle=null;if(scrubTime===null)draw(meta.mediaTime);nextFrame();});
+  else frameHandle=requestAnimationFrame(()=>{frameHandle=null;draw();nextFrame();});
+ }
+ prevVideo.addEventListener('play',()=>{stopFrame();nextFrame();});
+ prevVideo.addEventListener('pause',()=>{stopFrame();draw();});
+ prevVideo.addEventListener('ended',()=>{stopFrame();draw();});
+ prevVideo.addEventListener('emptied',()=>{stopFrame();scrubTime=null;draw();});
+ prevVideo.addEventListener('seeking',()=>{if(scrubTime===null)followPlayhead();draw();});
+ prevVideo.addEventListener('timeupdate',()=>draw());prevVideo.addEventListener('seeked',()=>draw());prevVideo.addEventListener('loadedmetadata',syncStyle);
  new ResizeObserver(syncStyle).observe(surface);
  const toggleReels=$('reelsSwitch').onclick;$('reelsSwitch').onclick=()=>{toggleReels();syncStyle();};
  $('langBtn').addEventListener('click',()=>{if(!invalid.size)renderList();});
  // Enter fullscreen on the surface so captions remain visible with the video.
  fullscreen.onclick=()=>surface.requestFullscreen().catch(()=>{});
+ Object.assign(I18N.ar,{
+  inspectorCaptions:'التفريغ الصوتي',xCaptions:'التفريغ الصوتي',exportSettings:'إعدادات التصدير والتفريغ',
+  whisperToggleBtn:'تفريغ كلام المتحدث',whisperGoBtn:'بدء التفريغ الصوتي',
+  whisperLangLbl:'لغة المتحدث (وليست لغة الترجمة)',whisperAuto:'اكتشاف لغة المتحدث تلقائيًا',
+  whisperBase:'متوازن (142MB)',whisperSmall:'دقة أعلى — موصى به (466MB، أبطأ)',
+  whisperDone:'تم تفريغ الكلام بلغته الأصلية — راجعي النص والتوقيت',whisperNeedVideo:'اختاري فيديو قبل التفريغ الصوتي.',
+  csSource:'تفريغ صوتي أو استيراد SRT',csEmpty:'افرغي صوت الفيديو أو استوردي SRT لبدء تحرير النص والتوقيت.',
+  csCaption:'نص التفريغ',csSaved:'تم حفظ ملف التفريغ',
+  captionPreviewHelp:'كتابة كلام المتحدث بلغته الأصلية، دون ترجمته. يتبع النص موضع المؤشر أثناء السحب والتشغيل.',
+  captionTimingNote:'أعيدي التفريغ للملفات المولّدة بالإصدارات القديمة: توقيتها لا يُصلح تلقائيًا. تُحفظ توقيتات SRT المستورد كما هي. الدقة تعتمد على وضوح الصوت واللغة؛ راجعي النص قبل التصدير.'
+ });
+ Object.assign(I18N.en,{
+  inspectorCaptions:'Transcription',xCaptions:'Audio transcription',exportSettings:'Export & transcription',
+  whisperToggleBtn:'Transcribe speech',whisperGoBtn:'Start transcription',whisperLangLbl:'Spoken language (not translation target)',
+  whisperAuto:'Auto-detect spoken language',whisperBase:'Balanced (142MB)',whisperSmall:'Higher accuracy — recommended (466MB, slower)',
+  whisperDone:'Speech transcribed in its original language — review text and timing',whisperNeedVideo:'Choose a video before transcribing.',
+  csSource:'Transcribe or import SRT',csEmpty:'Transcribe the video or import SRT to edit text and timing.',csCaption:'Transcript text',csSaved:'Transcript saved',
+  captionPreviewHelp:'Transcribes speech in its original language, without translation. Text follows the playhead during scrubbing and playback.',
+  captionTimingNote:'Regenerate transcripts made with older versions; their timing cannot be repaired automatically. Imported SRT timings are preserved. Accuracy depends on audio clarity and language; review before export.'
+ });
  renderList();syncStyle();applyLang();
 })();
 
@@ -118,6 +160,7 @@
   head.style.left=(targetTime/trimDur*100)+'%';
   head.setAttribute('aria-valuenow',String(targetTime));
   $('playerCurrent').textContent=fmtPlayerTime(targetTime);
+  window.captionStudio?.previewAt(targetTime);
   if(!seekFrame)seekFrame=requestAnimationFrame(flushSeek);
  }
  track.addEventListener('pointerdown',e=>{
@@ -132,6 +175,7 @@
   if(e.type==='pointerup')seek(e);
   active=null;cancelAnimationFrame(seekFrame);seekFrame=0;
   prevVideo.currentTime=targetTime;
+  window.captionStudio?.finishSeek();
   track.classList.remove('scrubbing');segmentClickBlockedUntil=performance.now()+300;
   if(track.hasPointerCapture(e.pointerId))track.releasePointerCapture(e.pointerId);
   if(wasPlaying&&e.type==='pointerup')setPlayback(true);
