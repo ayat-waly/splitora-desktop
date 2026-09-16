@@ -83,6 +83,7 @@ function hms(sec) {
 }
 
 /* ---------- captions (SRT) ---------- */
+const captionFonts = require('./font-library')(app, dialog, ipcMain, () => win);
 ipcMain.handle('read-captions', async (_e, file) => {
   if (typeof file !== 'string' || path.extname(file).toLowerCase() !== '.srt') throw new Error('Expected an SRT file');
   const stat = await fs.promises.stat(file);
@@ -194,9 +195,9 @@ ipcMain.handle('license-activate', (_e, key) => license.activate(key));
 /* ---------- IPC ---------- */
 ipcMain.handle('pick-video', async () => {
   const r = await dialog.showOpenDialog(win, {
-    title: 'اختر فيديو',
+    title: 'اختر فيديو أو ملف صوتي',
     properties: ['openFile'],
-    filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi'] }]
+    filters: [{ name: 'Video & Audio', extensions: ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi', 'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus'] }]
   });
   if (r.canceled || !r.filePaths[0]) return null;
   return r.filePaths[0];
@@ -205,7 +206,7 @@ ipcMain.handle('pick-video', async () => {
 ipcMain.handle('probe', async (_e, file) => {
   const out = await run(FFPROBE, ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', file]);
   const j = JSON.parse(out);
-  const v = (j.streams || []).find(s => s.codec_type === 'video') || {};
+  const v = (j.streams || []).find(s => s.codec_type === 'video' && !s.disposition?.attached_pic) || {};
   const duration = parseFloat(j.format?.duration || v.duration || 0);
   const size = parseInt(j.format?.size || 0, 10) || fs.statSync(file).size;
   let fps = 30;
@@ -297,14 +298,19 @@ ipcMain.handle('split', async (_e, opts) => {
           mode, ranges, fps, thumbnail,
           captionsPath, captionsStyle, videoW, videoH } = opts;
   if (!fs.existsSync(input)) throw new Error('input not found');
+  const media = JSON.parse(await run(FFPROBE, ['-v','error','-show_streams','-of','json',input]));
+  const audioOnly = !media.streams.some(s=>s.codec_type==='video'&&!s.disposition?.attached_pic);
+  if(audioOnly&&!media.streams.some(s=>s.codec_type==='audio'))throw Error('No playable audio or video stream');
+  const extension = audioOnly ? 'm4a' : 'mp4';
 
   const licStatus = await license.getStatus();
   if (licStatus.mode === 'locked') throw new Error('E_LICENSE_LOCKED');
   const watermarkPath = licStatus.watermark ? unpacked(path.join(__dirname, 'build', 'icon.png')) : null;
-  const hasWatermark = !!(watermarkPath && fs.existsSync(watermarkPath));
+  const hasWatermark = !audioOnly && !!(watermarkPath && fs.existsSync(watermarkPath));
   const captionModel=require('./renderer/caption-model');
+  for(const font of captionFonts.list())captionModel.registerFont(font.family);
   const editedCues=opts.captionCues==null?null:captionModel.validate(opts.captionCues);
-  const hasCaptions = editedCues!==null?editedCues.length>0:!!(captionsPath && fs.existsSync(captionsPath));
+  const hasCaptions = !audioOnly && (editedCues!==null?editedCues.length>0:!!(captionsPath && fs.existsSync(captionsPath)));
   const exportCues=hasCaptions?(editedCues||parseSrt(fs.readFileSync(captionsPath,'utf8'))):[];
 
   const capsTmpDir = hasCaptions ? path.join(os.tmpdir(), 'splitora-caps-' + Date.now()) : null;
@@ -315,7 +321,7 @@ ipcMain.handle('split', async (_e, opts) => {
     const readablePath=path.join(capsTmpDir,'styled_'+Math.random().toString(36).slice(2)+'.ass');
     const settings=opts.captionSettings||{preset:captionsStyle};
     fs.writeFileSync(readablePath,captionModel.ass(captionModel.clip(exportCues,start,length),settings,reels?9/16:(videoW&&videoH?videoW/videoH:16/9)),'utf8');
-    return `ass=filename=${ffFilterPath(readablePath)}`;
+    return `ass=filename=${ffFilterPath(readablePath)}:fontsdir=${ffFilterPath(captionFonts.directory())}`;
   }
 
   // dedicated subfolder per job: <video name>_parts, deduped
@@ -326,7 +332,7 @@ ipcMain.handle('split', async (_e, opts) => {
   fs.mkdirSync(jobDir, { recursive: true });
 
   const useFps = fps && fps > 0;
-  const needsEncode = reels || quality !== 'copy' || useFps || hasWatermark || hasCaptions;
+  const needsEncode = audioOnly || reels || quality !== 'copy' || useFps || hasWatermark || hasCaptions;
 
   // مدخل العلامة المائية خلال الفترة التجريبية.
   function overlayInputs() {
@@ -337,6 +343,7 @@ ipcMain.handle('split', async (_e, opts) => {
 
   // scale/pad/fps/captions chain، مع العلامة المائية التجريبية عند الحاجة.
   function filterArgs(capFilterStr) {
+    if(audioOnly)return [];
     const vf = [];
     if (reels) {
       const w = quality === '720' ? 720 : 1080, h = quality === '720' ? 1280 : 1920;
@@ -370,9 +377,10 @@ ipcMain.handle('split', async (_e, opts) => {
     return ['-filter_complex', filters.join(';')];
   }
   function mapArgs() {
+    if(audioOnly)return ['-map','0:a:0','-vn'];
     return hasWatermark ? ['-map', '[vout]', '-map', '0:a?'] : ['-map', '0:v:0', '-map', '0:a?'];
   }
-  const codecArgs = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'];
+  const codecArgs = audioOnly ? ['-c:a','aac','-b:a','192k'] : ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'];
 
   function runFfmpeg(args, progressBase, progressSpan, totalSec) {
     return new Promise((resolve, reject) => {
@@ -404,7 +412,7 @@ ipcMain.handle('split', async (_e, opts) => {
     for (let i = 0; i < ranges.length; i++) {
       const r = ranges[i];
       const len = Math.max(0.1, r.end - r.start);
-      const out = path.join(jobDir, `Splitora_Part_${String(i + 1).padStart(3, '0')}.mp4`);
+      const out = path.join(jobDir, `Splitora_Part_${String(i + 1).padStart(3, '0')}.${extension}`);
       const args = ['-hide_banner', '-y', '-ss', String(r.start), '-i', input];
       for (const ov of overlayInputs()) args.push('-i', ov);
       args.push('-t', String(len));
@@ -419,12 +427,13 @@ ipcMain.handle('split', async (_e, opts) => {
     }
   } else {
     // ===== automatic equal splitting (segment muxer, single pass) =====
-    const outPat = path.join(jobDir, 'Splitora_Part_%03d.mp4');
+    const outPat = path.join(jobDir, 'Splitora_Part_%03d.'+extension);
     const args = ['-hide_banner', '-y', '-i', input];
     for (const ov of overlayInputs()) args.push('-i', ov);
     const capFilterStr = hasCaptions ? captionsFilterFor() : null;
     if (needsEncode) {
-      args.push(...filterArgs(capFilterStr), ...codecArgs, '-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
+      args.push(...filterArgs(capFilterStr), ...codecArgs);
+      if(!audioOnly)args.push('-force_key_frames', `expr:gte(t,n_forced*${clipSec})`);
     } else {
       args.push('-c', 'copy');
     }
@@ -437,12 +446,12 @@ ipcMain.handle('split', async (_e, opts) => {
 
   // ===== collect parts =====
   let files = fs.readdirSync(jobDir)
-    .filter(f => /^Splitora_Part_\d+\.mp4$/.test(f)).sort()
+    .filter(f => /^Splitora_Part_\d+\.(mp4|m4a)$/.test(f)).sort()
     .map(f => ({ name: f, path: path.join(jobDir, f) }));
   if (!files.length) throw new Error('no output produced');
 
   // ===== embed thumbnail as cover art (attached_pic) =====
-  if (thumbnail && fs.existsSync(thumbnail)) {
+  if (!audioOnly && thumbnail && fs.existsSync(thumbnail)) {
     for (const f of files) {
       const tmp = f.path + '.cover.mp4';
       try {

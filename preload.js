@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('splitora', {
   genThumbstrip: (input, duration, count) => ipcRenderer.invoke('gen-thumbstrip', { input, duration, count }),
   genWaveform: (input, points) => ipcRenderer.invoke('gen-waveform', { input, points }),
   pickSrt: () => ipcRenderer.invoke('pick-srt'),
+  captionFonts: () => ipcRenderer.invoke('caption-fonts'),
+  importCaptionFont: () => ipcRenderer.invoke('import-caption-font'),
   readCaptions: (file) => ipcRenderer.invoke('read-captions', file),
   saveCaptions: (cues) => ipcRenderer.invoke('save-captions', cues),
   pickOutDir: () => ipcRenderer.invoke('pick-outdir'),
