@@ -1,0 +1,11 @@
+.fields{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.duration-fields{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.duration-fields input[type=number],.actions>input[type=number]{width:85px}
+.duration-fields select{flex:1;min-width:105px}
+.duration-fields input[type=datetime-local]{width:100%}
+.card{padding:22px 0;gap:16px}
+.card .actions{padding:12px;background:#f7f9fd;border-radius:12px}
+.device-list{display:grid;gap:8px}
+.device-list code{direction:ltr;color:#17657a;background:#e7f6fa;padding:6px;border-radius:6px}
+.device-list span{font-size:12px;flex:1}
+@media(max-width:600px){.actions .duration-fields{width:100%}.actions button{flex:1}.card .meta{line-height:1.9}}
